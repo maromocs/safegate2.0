@@ -1,0 +1,72 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: safegate-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: safegate_db
+      MYSQL_USER: safegate_user
+      MYSQL_PASSWORD: SafeGate123!
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - safegate-net
+    ports:
+      - "3306:3306"  # Added port mapping for direct access
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+
+  # Spring Boot API Service
+  api:
+    build:
+      context: .     # your Spring Boot project
+      dockerfile: Dockerfile
+    container_name: safegate-api
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/safegate_db?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: safegate_user
+      SPRING_DATASOURCE_PASSWORD: SafeGate123!
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - safegate-net
+
+  # Comment out until Week 3-4 when we build these components
+  # analyzer:
+  #   image: your-docker-registry/safegate-analyzer:latest
+  #   build:
+  #     context: ./analyzer  # your Python AI/ML code
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     DB_URL: jdbc:mysql://mysql:3306/safegate_db
+  #     DB_USER: safegate_user
+  #     DB_PASS: SafeGate123!
+  #   depends_on:
+  #     - mysql
+  #   networks:
+  #     - safegate-net
+
+  # dashboard:
+  #   image: your-docker-registry/safegate-dashboard:latest
+  #   build:
+  #     context: ./dashboard  # your React/Vite app
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - safegate-net
+
+volumes:
+  mysql_data:
+
+networks:
+  safegate-net:
+    driver: bridge

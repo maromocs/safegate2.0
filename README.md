@@ -8,7 +8,10 @@ SafeGate serves as a security gateway that monitors web traffic, detects potenti
 
 ## Features
 
+- **Web Application Firewall (WAF)**: Actively detects and blocks malicious requests using signature-based rules
 - **Security Monitoring**: Monitors and logs all incoming HTTP requests
+- **Attack Detection**: Identifies common attack patterns like SQL Injection, XSS, Command Injection, and Directory Traversal
+- **Security Logging**: Records detailed information about blocked attacks for analysis
 - **Vulnerability Reporting**: Allows users to report various types of web security vulnerabilities
 - **Incident Management**: Tracks security incidents through their lifecycle from reporting to resolution
 - **User Management**: Supports different user roles with varying levels of access and responsibilities
@@ -19,9 +22,11 @@ SafeGate serves as a security gateway that monitors web traffic, detects potenti
 SafeGate is built as a multi-component system:
 
 1. **Spring Boot Backend API**: Core application that handles business logic, data persistence, and API endpoints
-2. **MySQL Database**: Stores user data, security reports, and gate information
-3. **Analyzer Component** (Planned): Will provide AI/ML-based analysis of security data
-4. **Dashboard** (Planned): Will provide a user-friendly interface for interacting with the system
+2. **Web Application Firewall (WAF)**: Filters incoming requests and blocks malicious traffic based on signature rules
+3. **Signature Rules Engine**: Manages and applies security rules to detect common attack patterns
+4. **MySQL Database**: Stores user data, security reports, gate information, and blocked request logs
+5. **Analyzer Component** (Planned): Will provide AI/ML-based analysis of security data
+6. **Dashboard** (Planned): Will provide a user-friendly interface for interacting with the system
 
 ## Technology Stack
 
@@ -32,6 +37,24 @@ SafeGate is built as a multi-component system:
 
 ## Security Features
 
+### Web Application Firewall (WAF)
+SafeGate includes a built-in Web Application Firewall that actively monitors incoming requests and blocks malicious traffic. The WAF:
+
+- Intercepts all HTTP requests
+- Normalizes request data (method, path, query parameters)
+- Applies signature-based rules to detect attack patterns
+- Blocks requests that match known attack signatures
+- Logs detailed information about blocked requests
+
+### Signature-Based Detection
+The system uses a signature rules engine with regex patterns to detect common attack types:
+
+- SQL Injection (SQLI-001) - Detects common SQL injection patterns
+- Cross-Site Scripting (XSS-001) - Detects script tags and JavaScript code
+- Command Injection (CMDI-001) - Detects attempts to execute system commands
+- Directory Traversal (TRAV-001) - Detects path traversal attempts
+
+### Security Monitoring and Reporting
 SafeGate can detect and report on various types of web security vulnerabilities, including:
 
 - SQL Injection
@@ -106,8 +129,46 @@ Security reports in SafeGate have:
 
 ## API Endpoints
 
+### Test Endpoints
 - `/hello` - Test endpoint that returns "Hello, World!"
-- More endpoints will be added as development progresses
+
+### Security Endpoints
+- `/api/security/blocked` - Get all blocked requests ordered by timestamp
+- `/api/security/blocked/count` - Get the total count of blocked requests
+
+### Logs Endpoints
+- `/api/logs` - Get all logs of blocked requests
+- `/api/logs/recent` - Get recent logs (default: last 24 hours)
+- `/api/logs/stats` - Get statistics about blocked requests (total count, last 24h count, attack patterns, top attacking IPs)
+- `/api/logs` (DELETE) - Clear all logs
+
+## Security Logging System
+
+SafeGate includes a comprehensive logging system for security incidents:
+
+### Blocked Request Logging
+When the WAF blocks a malicious request, it records detailed information:
+- Timestamp of the attack
+- Source IP address
+- Attack pattern that was matched
+- Raw payload that triggered the block
+- Rule ID that was matched
+- HTTP method (GET, POST, etc.)
+- Request URI (path)
+- User-Agent header
+
+### Security Analytics
+The system provides several analytics endpoints:
+- Total number of blocked requests
+- Requests blocked in the last 24 hours
+- Distribution of attack patterns
+- Top attacking IP addresses
+
+### Log Management
+Administrators can:
+- View all blocked requests
+- Filter logs by time period
+- Clear logs when needed
 
 ## Future Development
 
@@ -115,6 +176,8 @@ Security reports in SafeGate have:
 - Development of a user-friendly dashboard interface
 - Enhanced security monitoring and threat detection capabilities
 - Integration with external security tools and services
+- Expansion of signature rules to detect more attack patterns
+- Real-time alerting for security incidents
 
 ## Contributing
 

@@ -13,7 +13,7 @@ services:
     networks:
       - safegate-net
     ports:
-      - "3306:3306"  # Added port mapping for direct access
+      - "3307:3306"  # Added port mapping for direct access
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 10s

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blocked Requests - SafeGate WAF</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <style>
+        body { max-width: 1200px; margin: auto; padding: 1rem; }
+        nav a { margin-right: 1rem; }
+        table { width: 100%; }
+        .payload { max-width: 400px; overflow-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/index.html">Home</a>
+        <a href="/rules.html">Manage Rules</a>
+        <a href="/testing.html">Testing</a>
+    </nav>
+    <h1>Blocked Requests Log</h1>
+    <button onclick="fetchBlockedRequests()">Refresh Logs</button>
+    <table id="blocked-requests-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Timestamp</th>
+            <th>IP Address</th>
+            <th>Rule Name</th>
+            <th>Method</th>
+            <th>URI</th>
+            <th>User Agent</th>
+            <th class="payload">Payload</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Data will be populated here -->
+        </tbody>
+    </table>
+
+<script>
+    function fetchBlockedRequests() {
+        fetch('/api/logs')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector("#blocked-requests-table tbody");
+                tableBody.innerHTML = "";
+                data.forEach(log => {
+                    const row = `<tr>
+                        <td>${log.id}</td>
+                        <td>${new Date(log.timestamp).toLocaleString()}</td>
+                        <td>${log.ipAddress}</td>
+                        <td>${log.ruleName}</td>
+                        <td>${log.requestMethod}</td>
+                        <td>${log.requestUri}</td>
+                        <td>${log.userAgent}</td>
+                        <td class="payload">${log.payload}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchBlockedRequests);
+</script>
+</body>
+</html>

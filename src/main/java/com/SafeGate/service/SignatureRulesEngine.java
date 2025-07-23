@@ -48,8 +48,8 @@ public class SignatureRulesEngine {
     private void loadRulesFromDatabase() {
         lock.writeLock().lock();
         try {
-            rules = ruleRepository.findAll();
-            logger.info("Loaded {} signature rules from the database.", rules.size());
+            rules = ruleRepository.findAllByEnabledTrue();
+            logger.info("Loaded {} active signature rules from the database.", rules.size());
         } finally {
             lock.writeLock().unlock();
         }
@@ -74,12 +74,8 @@ public class SignatureRulesEngine {
     }
 
     public List<SignatureRule> getAllRules() {
-        lock.readLock().lock();
-        try {
-            return new ArrayList<>(rules);
-        } finally {
-            lock.readLock().unlock();
-        }
+        // Return all rules from the repository, including disabled ones
+        return ruleRepository.findAll();
     }
 
     @Transactional
@@ -96,6 +92,7 @@ public class SignatureRulesEngine {
             rule.setName(ruleDetails.getName());
             rule.setPattern(ruleDetails.getPattern());
             rule.setDescription(ruleDetails.getDescription());
+            rule.setEnabled(ruleDetails.isEnabled());
             SignatureRule updatedRule = ruleRepository.save(rule);
             loadRulesFromDatabase(); // Refresh the rules list
             return updatedRule;
@@ -110,5 +107,10 @@ public class SignatureRulesEngine {
             return true;
         }
         return false;
+    }
+    
+    @Transactional
+    public void reloadRulesFromDatabase() {
+        loadRulesFromDatabase();
     }
 }

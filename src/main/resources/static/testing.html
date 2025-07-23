@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Testing - SafeGate WAF</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <style>
+        body { max-width: 1200px; margin: auto; padding: 1rem; }
+        nav a { margin-right: 1rem; }
+        .status-box { background-color: #1a1a1a; padding: 1rem; border-radius: 5px; margin-top: 1rem; }
+        .status-box.active { border: 1px solid lightgreen; }
+        .status-box.inactive { border: 1px solid gray; }
+        #start-test-btn { background-color: green; }
+        #stop-test-btn { background-color: crimson; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/index.html">Home</a>
+        <a href="/logs.html">View Logs</a>
+        <a href="/rules.html">Manage Rules</a>
+    </nav>
+    <h1>Performance Testing</h1>
+    <p>Use this panel to run performance tests. When a test is active, blocked requests are not saved to the database. Instead, they are counted here in real-time.</p>
+
+    <button id="start-test-btn" onclick="startTest()">Start New Test</button>
+    <button id="stop-test-btn" onclick="stopTest()">Stop Current Test</button>
+
+    <div id="status-container" class="status-box inactive">
+        <h3>Current Test Status</h3>
+        <div id="status-content">
+            Test mode is currently INACTIVE.
+        </div>
+    </div>
+
+    <h2>Completed Test Runs</h2>
+    <button onclick="fetchResults()">Refresh Results</button>
+    <table id="results-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration (s)</th>
+            <th>Passed</th>
+            <th>Blocked</th>
+            <th>Blocked Counts</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+<script>
+    let statusInterval;
+    const startBtn = document.getElementById('start-test-btn');
+    const stopBtn = document.getElementById('stop-test-btn');
+    const statusContainer = document.getElementById('status-container');
+    const statusContent = document.getElementById('status-content');
+
+    function startTest() {
+        if (!confirm("Starting a new test will clear any running test data. Proceed?")) return;
+        fetch('/api/tests/start', { method: 'POST' }).then(() => checkStatus());
+    }
+
+    function stopTest() {
+        if (!confirm("Are you sure you want to stop the current test?")) return;
+        fetch('/api/tests/stop', { method: 'POST' }).then(() => {
+            checkStatus();
+            fetchResults();
+        });
+    }
+
+    function checkStatus() {
+        fetch('/api/tests/status')
+            .then(response => response.json())
+            .then(status => {
+                if (status.testModeEnabled) {
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusContainer.className = 'status-box active';
+
+                    const run = status.currentRun;
+                    const startTime = new Date(run.startTime).toLocaleString();
+                    const duration = ((new Date() - new Date(run.startTime)) / 1000).toFixed(1);
+                    let countsHtml = '<ul>';
+                    run.blockCounts.forEach(bc => {
+                        countsHtml += `<li>${bc.ruleName}: ${bc.count}</li>`;
+                    });
+                    countsHtml += '</ul>';
+
+                    statusContent.innerHTML = `
+                        <p><strong>Test is ACTIVE</strong></p>
+                        <p><strong>Started:</strong> ${startTime}</p>
+                        <p><strong>Duration:</strong> ${duration} seconds</p>
+                        <p><strong>Passed Requests:</strong> ${run.totalPassed}</p>
+                        <p><strong>Blocked Requests:</strong> ${run.totalBlocked}</p>
+                        <div><strong>Blocked by Rule:</strong>${countsHtml}</div>`;
+                    if (!statusInterval) {
+                       statusInterval = setInterval(checkStatus, 2000);
+                    }
+                } else {
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    statusContainer.className = 'status-box inactive';
+                    statusContent.innerHTML = 'Test mode is currently INACTIVE.';
+                    if (statusInterval) {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                    }
+                }
+            });
+    }
+
+    function fetchResults() {
+        fetch('/api/tests/results')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector("#results-table tbody");
+                tableBody.innerHTML = "";
+                data.reverse().forEach(run => {
+                    const startTime = new Date(run.startTime).toLocaleString();
+                    const endTime = new Date(run.endTime).toLocaleString();
+                    const duration = ((new Date(run.endTime) - new Date(run.startTime)) / 1000).toFixed(2);
+                    let countsHtml = '<ul>';
+                    run.blockCounts.forEach(bc => {
+                        countsHtml += `<li>${bc.ruleName}: ${bc.count}</li>`;
+                    });
+                    countsHtml += '</ul>';
+
+                    const row = `<tr>
+                        <td>${run.id}</td>
+                        <td>${startTime}</td>
+                        <td>${endTime}</td>
+                        <td>${duration}</td>
+                        <td>${run.totalPassed}</td>
+                        <td>${run.totalBlocked}</td>
+                        <td>${countsHtml}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        checkStatus();
+        fetchResults();
+    });
+</script>
+</body>
+</html>

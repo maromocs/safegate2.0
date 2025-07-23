@@ -30,6 +30,9 @@ public class SignatureRule {
     @Column(nullable = false)
     private String description;
 
+    @Column(nullable = false)
+    private boolean enabled = true;
+
     @Transient
     private Pattern compiledPattern;
 
@@ -38,6 +41,7 @@ public class SignatureRule {
         this.name = name;
         this.pattern = pattern;
         this.description = description;
+        this.enabled = true;
     }
 
     public Pattern getCompiledPattern() {

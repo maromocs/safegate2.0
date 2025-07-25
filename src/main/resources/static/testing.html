@@ -12,6 +12,51 @@
         .status-box.inactive { border: 1px solid gray; }
         #start-test-btn { background-color: green; }
         #stop-test-btn { background-color: crimson; }
+        
+        /* Styles for the detailed breakdown */
+        #results-table td { vertical-align: top; padding: 10px; }
+        #results-table ul { margin: 5px 0; padding-left: 20px; }
+        #results-table strong { display: block; margin-top: 10px; }
+        .breakdown-section { background-color: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .passed-payloads { max-height: 200px; overflow-y: auto; }
+        
+        /* Error message styles */
+        #error-container { 
+            display: none; 
+            background-color: #3a1c1c; 
+            border: 1px solid #ff6b6b; 
+            color: #ff6b6b; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 15px 0; 
+        }
+        #error-container h4 { 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+        }
+        #error-details { 
+            background-color: #2a1515; 
+            padding: 10px; 
+            border-radius: 3px; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            margin-top: 10px; 
+        }
+        
+        /* Delete button styling */
+        .delete-btn {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .delete-btn:hover {
+            background-color: #b71c1c;
+        }
     </style>
 </head>
 <body>
@@ -23,8 +68,60 @@
     <h1>Performance Testing</h1>
     <p>Use this panel to run performance tests. When a test is active, blocked requests are not saved to the database. Instead, they are counted here in real-time.</p>
 
-    <button id="start-test-btn" onclick="startTest()">Start New Test</button>
-    <button id="stop-test-btn" onclick="stopTest()">Stop Current Test</button>
+    <div id="dataset-test-section" style="margin-top: 1rem; padding: 1rem; border: 1px solid gray; border-radius: 5px;">
+        <h3>Automated Dataset Test</h3>
+        <form id="dataset-test-form">
+            <div>
+                <label for="dataset-file">Upload Dataset File:</label>
+                <input type="file" id="dataset-file" name="file" required>
+            </div>
+            
+            <div>
+                <label for="dataset-format">Dataset Format:</label>
+                <select id="dataset-format" name="datasetFormat" required>
+                    <option value="AUTO" selected>Auto-detect (recommended)</option>
+                    <option value="TXT">TXT (one payload per line)</option>
+                    <option value="CSV">CSV</option>
+                    <option value="JSON">JSON</option>
+                    <option value="XML">XML</option>
+                    <option value="TSV">TSV (tab-separated values)</option>
+                </select>
+            </div>
+            
+            <div id="format-detection-info" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background-color: #1a1a1a; border-radius: 5px;">
+                <span id="detected-format-message"></span>
+            </div>
+            
+            <div>
+                <label for="attack-type">Attack Type Identifier (optional):</label>
+                <input type="text" id="attack-type" name="attackTypeTag" placeholder="e.g., SQLi, XSS, Path Traversal">
+            </div>
+            
+            <div>
+                <label>Number of Attacks to Test:</label>
+                <div style="margin-top: 0.5rem;">
+                    <label><input type="radio" name="samplingSize" value="All" checked> All</label>
+                    <label style="margin-left: 1rem;"><input type="radio" name="samplingSize" value="Random 100"> Random 100</label>
+                    <label style="margin-left: 1rem;"><input type="radio" name="samplingSize" value="Random 1,000"> Random 1,000</label>
+                    <label style="margin-left: 1rem;"><input type="radio" name="samplingSize" value="Random 10,000"> Random 10,000</label>
+                    <label style="margin-left: 1rem;"><input type="radio" name="samplingSize" value="Random 100,000"> Random 100,000</label>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div style="margin-top: 1rem;">
+        <button id="start-test-btn" onclick="startTest()">Start New Test</button>
+        <button id="stop-test-btn" onclick="stopTest()">Stop Current Test</button>
+    </div>
+
+    <!-- Error message container -->
+    <div id="error-container">
+        <h4>Error Processing Dataset</h4>
+        <div id="error-message"></div>
+        <div id="error-details"></div>
+        <button onclick="hideError()" style="margin-top: 10px;">Dismiss</button>
+    </div>
 
     <div id="status-container" class="status-box inactive">
         <h3>Current Test Status</h3>
@@ -41,10 +138,10 @@
             <th>ID</th>
             <th>Start Time</th>
             <th>End Time</th>
-            <th>Duration (s)</th>
-            <th>Passed</th>
-            <th>Blocked</th>
-            <th>Blocked Counts</th>
+            <th>Dataset File</th>
+            <th>Test Parameters</th>
+            <th>Detailed Breakdown</th>
+            <th>Actions</th>
         </tr>
         </thead>
         <tbody>
@@ -57,9 +154,93 @@
     const statusContainer = document.getElementById('status-container');
     const statusContent = document.getElementById('status-content');
 
+    // Function to handle file selection and provide format feedback
+    function handleFileSelection() {
+        const fileInput = document.getElementById('dataset-file');
+        const formatInfo = document.getElementById('format-detection-info');
+        const formatMessage = document.getElementById('detected-format-message');
+        
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileName = file.name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            
+            // Show format detection info
+            formatInfo.style.display = 'block';
+            
+            // Set message based on file extension
+            if (['csv', 'json', 'xml', 'txt', 'tsv'].includes(fileExtension)) {
+                formatMessage.innerHTML = `<span style="color: lightgreen;">✓</span> File appears to be ${fileExtension.toUpperCase()} format based on extension. Auto-detection will confirm.`;
+                
+                // Auto-select the format based on extension if not using auto-detect
+                const formatSelect = document.getElementById('dataset-format');
+                if (formatSelect.value !== 'AUTO') {
+                    const matchingOption = Array.from(formatSelect.options).find(option => 
+                        option.value.toLowerCase() === fileExtension.toLowerCase());
+                    
+                    if (matchingOption) {
+                        formatSelect.value = matchingOption.value;
+                    }
+                }
+            } else {
+                formatMessage.innerHTML = `<span style="color: orange;">⚠</span> Unknown file extension (.${fileExtension}). Using auto-detection.`;
+            }
+        } else {
+            // Hide format detection info if no file is selected
+            formatInfo.style.display = 'none';
+        }
+    }
+
     function startTest() {
         if (!confirm("Starting a new test will clear any running test data. Proceed?")) return;
-        fetch('/api/tests/start', { method: 'POST' }).then(() => checkStatus());
+        
+        // Check if a dataset file is selected
+        const datasetFile = document.getElementById('dataset-file');
+        if (datasetFile.files.length > 0) {
+            // Dataset test
+            const form = document.getElementById('dataset-test-form');
+            const formData = new FormData(form);
+            
+            // Show loading state
+            startBtn.disabled = true;
+            statusContainer.className = 'status-box active';
+            statusContent.innerHTML = '<p><strong>Test is ACTIVE</strong></p><p>Processing dataset, please wait...</p>';
+            
+            fetch('/api/tests/start-dataset-test', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Error processing dataset');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Handle the enhanced response
+                if (data.detectedFormat) {
+                    const formatInfo = document.getElementById('format-detection-info');
+                    const formatMessage = document.getElementById('detected-format-message');
+                    
+                    formatInfo.style.display = 'block';
+                    formatMessage.innerHTML = `<span style="color: lightgreen;">✓</span> Successfully processed file using ${data.detectedFormat} format.`;
+                }
+                
+                checkStatus();
+                fetchResults();
+            })
+            .catch(error => {
+                showError(error.message);
+                startBtn.disabled = false;
+                statusContainer.className = 'status-box inactive';
+                statusContent.innerHTML = 'Test mode is currently INACTIVE.';
+            });
+        } else {
+            // Regular test
+            fetch('/api/tests/start', { method: 'POST' }).then(() => checkStatus());
+        }
     }
 
     function stopTest() {
@@ -120,30 +301,231 @@
                 data.reverse().forEach(run => {
                     const startTime = new Date(run.startTime).toLocaleString();
                     const endTime = new Date(run.endTime).toLocaleString();
-                    const duration = ((new Date(run.endTime) - new Date(run.startTime)) / 1000).toFixed(2);
-                    let countsHtml = '<ul>';
-                    run.blockCounts.forEach(bc => {
-                        countsHtml += `<li>${bc.ruleName}: ${bc.count}</li>`;
-                    });
-                    countsHtml += '</ul>';
+                    
+                    // Dataset file name or "N/A" for manual tests
+                    const datasetFile = run.datasetFileName || "N/A";
+                    
+                    // Test parameters
+                    const testParams = run.testParameters || "Manual Test";
+                    
+                    // Create detailed breakdown
+                    let detailedBreakdown = '';
+                    
+                    // Overall statistics
+                    detailedBreakdown += `
+                        <div class="breakdown-section">
+                            <strong>Overall:</strong>
+                            <ul>
+                                <li>Total Requests Sent: ${run.totalPassed + run.totalBlocked}</li>
+                                <li>Passed: ${run.totalPassed}</li>
+                                <li>Blocked: ${run.totalBlocked}</li>
+                            </ul>
+                        </div>
+                    `;
+                    
+                    // Analysis for tagged attacks
+                    if (run.attackTypeTag && run.totalMaliciousRequests > 0) {
+                        const effectiveness = (run.totalMaliciousBlocked / run.totalMaliciousRequests * 100).toFixed(1);
+                        detailedBreakdown += `
+                            <div class="breakdown-section">
+                                <strong>Analysis for "${run.attackTypeTag}" Attacks:</strong>
+                                <ul>
+                                    <li>Total Malicious ("${run.attackTypeTag}") Requests: ${run.totalMaliciousRequests}</li>
+                                    <li>Blocked: ${run.totalMaliciousBlocked} (${effectiveness}% effectiveness)</li>
+                                    <li>Passed (Bypassed WAF): ${run.totalMaliciousRequests - run.totalMaliciousBlocked}</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    
+                    // Blocked by rule
+                    if (run.blockCounts && run.blockCounts.length > 0) {
+                        detailedBreakdown += '<div class="breakdown-section"><strong>Blocked by Rule:</strong><ul>';
+                        run.blockCounts.forEach(bc => {
+                            detailedBreakdown += `<li>${bc.ruleName}: ${bc.count} requests</li>`;
+                        });
+                        detailedBreakdown += '</ul></div>';
+                    }
+                    
+                    // Passed attack payloads
+                    if (run.passedPayloads && run.passedPayloads.length > 0) {
+                        detailedBreakdown += '<div class="breakdown-section"><strong>Passed Attack Payloads:</strong><div class="passed-payloads"><ul>';
+                        // Limit to first 10 payloads to avoid overwhelming the UI
+                        const displayPayloads = run.passedPayloads.slice(0, 10);
+                        displayPayloads.forEach(pp => {
+                            detailedBreakdown += `<li>${escapeHtml(pp.payload)}</li>`;
+                        });
+                        if (run.passedPayloads.length > 10) {
+                            detailedBreakdown += `<li>... and ${run.passedPayloads.length - 10} more</li>`;
+                        }
+                        detailedBreakdown += '</ul></div></div>';
+                    }
 
                     const row = `<tr>
                         <td>${run.id}</td>
                         <td>${startTime}</td>
                         <td>${endTime}</td>
-                        <td>${duration}</td>
-                        <td>${run.totalPassed}</td>
-                        <td>${run.totalBlocked}</td>
-                        <td>${countsHtml}</td>
+                        <td>${datasetFile}</td>
+                        <td>${testParams}</td>
+                        <td>${detailedBreakdown}</td>
+                        <td><button class="delete-btn" onclick="deleteTestRun(${run.id})">Delete</button></td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
             });
     }
+    
+    // Helper function to escape HTML to prevent XSS
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+    // Function to display error messages in the error container
+    function showError(message, details = '', suggestion = '') {
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const errorDetails = document.getElementById('error-details');
+        
+        // Parse the error message to extract useful information
+        let mainMessage = message;
+        let detailsMessage = details;
+        let suggestionMessage = suggestion;
+        
+        // Check if the error is from the enhanced API response
+        if (typeof message === 'object' && message !== null) {
+            // This is likely a parsed JSON error object
+            mainMessage = message.error || 'Unknown error';
+            detailsMessage = message.errorType ? `Error type: ${message.errorType}` : '';
+            suggestionMessage = message.suggestion || '';
+            
+            // Format the details message
+            if (detailsMessage && suggestionMessage) {
+                detailsMessage = `${detailsMessage}\n\n${suggestionMessage}`;
+            } else if (suggestionMessage) {
+                detailsMessage = suggestionMessage;
+            }
+        } else {
+            // Check for specific error patterns in string messages
+            if (message.includes('Unexpected end of JSON input')) {
+                mainMessage = 'Invalid JSON format in the uploaded file.';
+                detailsMessage = 'The file you uploaded could not be parsed as JSON. This could be because:\n' +
+                    '1. The file is not actually in JSON format\n' +
+                    '2. The JSON is malformed or incomplete\n' +
+                    '3. You selected JSON format but uploaded a different file type\n\n' +
+                    'Try selecting "Auto-detect" format or a different format (like CSV or TXT) that matches your file content.';
+            } else if (message.includes('CSV file is empty or has no headers')) {
+                mainMessage = 'CSV file has no headers.';
+                detailsMessage = 'The system could not find a header row in your CSV file. Please ensure:\n' +
+                    '1. Your CSV file is not empty\n' +
+                    '2. The first row contains column names\n' +
+                    '3. Column names are properly formatted (with or without quotes)\n\n' +
+                    'The CSIC 2010 dataset should have a header row with column names including "payload".';
+            } else if (message.includes('No payloads could be extracted')) {
+                mainMessage = 'No payloads found in CSV file.';
+                detailsMessage = 'The system could not extract any payloads from your CSV file. Please ensure:\n' +
+                    '1. The file contains data rows (not just a header)\n' +
+                    '2. The "payload" column (or the column being used) contains non-empty values\n' +
+                    '3. The CSV format is correct (commas as separators, optional quotes around values)\n\n' +
+                    'If your file has a different structure, you may need to reformat it.';
+            } else if (message.includes('No column named \'payload\'')) {
+                mainMessage = 'Payload column not found in CSV file.';
+                detailsMessage = 'The system could not find a column named "payload" in your CSV file. Please ensure:\n' +
+                    '1. Your CSV file has a header row with column names\n' +
+                    '2. One of the columns is named "payload" (case insensitive)\n' +
+                    '3. If your file uses a different column name for payloads, consider renaming it\n\n' +
+                    'The CSIC 2010 dataset should have a column named "payload" that contains the attack payloads.';
+            } else if (message.includes('CSV') && (message.includes('column') || message.includes('payload'))) {
+                mainMessage = 'CSV parsing issue with payload column.';
+                detailsMessage = 'The system had trouble identifying or processing the payload column in your CSV file. Please ensure:\n' +
+                    '1. Your CSV file has a header row\n' +
+                    '2. There is a column named "payload" (case insensitive)\n' +
+                    '3. The payload column contains the attack payloads you want to test\n\n' +
+                    'If your file has a different structure, you may need to reformat it.';
+            } else if (message.includes('Error parsing CSV')) {
+                mainMessage = 'Error parsing CSV file.';
+                detailsMessage = 'The system encountered an error while parsing your CSV file. This could be because:\n' +
+                    '1. The file format is not standard CSV (comma-separated values)\n' +
+                    '2. There are formatting issues like unbalanced quotes or special characters\n' +
+                    '3. The file encoding is not supported\n\n' +
+                    'Try opening the file in a text editor to check its format, or use a tool like Excel to export it as a standard CSV.';
+            } else if (message.includes('format')) {
+                mainMessage = 'File format detection issue.';
+                detailsMessage = 'The system had trouble detecting or processing the file format. Try:\n' +
+                    '1. Using the "Auto-detect" option\n' +
+                    '2. Ensuring your file matches the selected format\n' +
+                    '3. Checking if the file is properly formatted\n\n' +
+                    'If problems persist, try converting your file to a simpler format like TXT.';
+            }
+        }
+        
+        // Set the error messages
+        errorMessage.textContent = mainMessage;
+        errorDetails.textContent = detailsMessage || 'No additional details available.';
+        
+        // Show the error container
+        errorContainer.style.display = 'block';
+        
+        // Scroll to the error container
+        errorContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Function to hide the error container
+    function hideError() {
+        const errorContainer = document.getElementById('error-container');
+        errorContainer.style.display = 'none';
+    }
+    
+    // Function to delete a test run
+    function deleteTestRun(id) {
+        if (!confirm(`Are you sure you want to delete test run #${id}? This action cannot be undone.`)) {
+            return;
+        }
+        
+        fetch(`/api/tests/results/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Error deleting test run');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show success message
+            alert('Test run deleted successfully');
+            // Refresh the results table
+            fetchResults();
+        })
+        .catch(error => {
+            // Show error message
+            showError(error.message);
+        });
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
+        // Initialize the page
         checkStatus();
         fetchResults();
+        
+        // Add event listener for file selection
+        const fileInput = document.getElementById('dataset-file');
+        fileInput.addEventListener('change', handleFileSelection);
+        
+        // Add event listener for format dropdown changes
+        const formatSelect = document.getElementById('dataset-format');
+        formatSelect.addEventListener('change', () => {
+            // If a file is already selected, update the format info
+            if (fileInput.files.length > 0) {
+                handleFileSelection();
+            }
+        });
     });
 </script>
 </body>

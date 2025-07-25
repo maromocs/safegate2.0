@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Test datasets and attack payloads
+output_http_csic_2010_weka_with_duplications_RAW-RFC2616_escd_v02_full.csv
+*.csv
+test-data/
+datasets/

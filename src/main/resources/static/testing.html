@@ -113,6 +113,16 @@
     <div style="margin-top: 1rem;">
         <button id="start-test-btn" onclick="startTest()">Start New Test</button>
         <button id="stop-test-btn" onclick="stopTest()">Stop Current Test</button>
+        <button id="refresh-llm-status" type="button" style="margin-left: 1rem;">Refresh LLM Status</button>
+    </div>
+
+    <div id="llm-status-banner" class="status-message" style="display:none; margin-top:10px; padding: 0.75rem; border: 1px solid gray; border-radius: 5px;"></div>
+
+    <div id="llm-results" style="display:none; margin-top: 1rem; padding: 1rem; border: 1px solid gray; border-radius: 5px;">
+        <h3>LLM Dataset Analysis Results</h3>
+        <div id="llm-counters"></div>
+        <div id="llm-bycategory"></div>
+        <div id="llm-malicious-list"></div>
     </div>
 
     <!-- Error message container -->
@@ -153,6 +163,34 @@
     const stopBtn = document.getElementById('stop-test-btn');
     const statusContainer = document.getElementById('status-container');
     const statusContent = document.getElementById('status-content');
+    const llmStatusBanner = document.getElementById('llm-status-banner');
+    const refreshLlmStatusBtn = document.getElementById('refresh-llm-status');
+
+    function refreshLlmStatus() {
+        Promise.all([
+            fetch('/api/llm/config').then(r => r.json()).catch(() => ({})),
+            fetch('/api/llm/models').then(r => r.json()).catch(() => ({}))
+        ]).then(([cfg, models]) => {
+            const mode = cfg.llmMode || 'DISABLED';
+            const provider = cfg.provider || 'ollama';
+            const model = cfg.model || '';
+            const gpu = cfg.gpuEnabled ? 'On' : 'Off';
+            const avail = Array.isArray(models.available) ? models.available : [];
+            const rec = Array.isArray(models.recommended) ? models.recommended : [];
+            const reachable = (avail.length > 0 || rec.length > 0) ? 'Yes' : 'Unknown';
+            const datasetActive = (mode === 'TEST_ONLY' || mode === 'NORMAL_AND_TEST') ? 'Yes' : 'No';
+            llmStatusBanner.style.display = 'block';
+            llmStatusBanner.innerHTML = `<strong>LLM Status</strong><br>
+                Mode: ${mode} | Provider/Model: ${provider}/${model} | GPU: ${gpu}<br>
+                Analyzer reachable: ${reachable} | Will analyze dataset: ${datasetActive}`;
+        }).catch(() => {
+            llmStatusBanner.style.display = 'block';
+            llmStatusBanner.textContent = 'Failed to refresh LLM status.';
+        });
+    }
+
+    refreshLlmStatusBtn.addEventListener('click', refreshLlmStatus);
+    document.addEventListener('DOMContentLoaded', refreshLlmStatus);
 
     // Function to handle file selection and provide format feedback
     function handleFileSelection() {
@@ -226,6 +264,41 @@
                     
                     formatInfo.style.display = 'block';
                     formatMessage.innerHTML = `<span style="color: lightgreen;">✓</span> Successfully processed file using ${data.detectedFormat} format.`;
+                }
+
+                // Render LLM results if present
+                if (data.llmStats) {
+                    const llmDiv = document.getElementById('llm-results');
+                    const countersDiv = document.getElementById('llm-counters');
+                    const byCatDiv = document.getElementById('llm-bycategory');
+                    const listDiv = document.getElementById('llm-malicious-list');
+                    llmDiv.style.display = 'block';
+
+                    const s = data.llmStats;
+                    countersDiv.innerHTML = `<p><strong>Counters:</strong> Total=${s.total || 0}, Malicious=${s.malicious || 0}, Safe=${s.safe || 0}</p>`;
+
+                    const byCat = s.byCategory || {};
+                    let bcHtml = '<strong>By Category:</strong><ul>';
+                    for (const [k, v] of Object.entries(byCat)) {
+                        bcHtml += `<li>${k}: ${v}</li>`;
+                    }
+                    bcHtml += '</ul>';
+                    byCatDiv.innerHTML = bcHtml;
+
+                    const items = data.llmMaliciousPayloads || [];
+                    if (items.length > 0) {
+                        let tbl = '<table><thead><tr><th>Payload</th><th>Category</th><th>Reason</th></tr></thead><tbody>';
+                        items.forEach(it => {
+                            const p = escapeHtml(String(it.payload || ''));
+                            const c = escapeHtml(String(it.category || ''));
+                            const r = escapeHtml(String(it.reason || ''));
+                            tbl += `<tr><td>${p}</td><td>${c}</td><td>${r}</td></tr>`;
+                        });
+                        tbl += '</tbody></table>';
+                        listDiv.innerHTML = tbl;
+                    } else {
+                        listDiv.innerHTML = '<em>No malicious payloads flagged by LLM.</em>';
+                    }
                 }
                 
                 checkStatus();

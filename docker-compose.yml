@@ -31,28 +31,72 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/safegate_db?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: safegate_user
       SPRING_DATASOURCE_PASSWORD: SafeGate123!
+      LLM_ANALYZER_URL: http://analyzer:5000/analyze # Add this
     depends_on:
       mysql:
         condition: service_healthy
+      analyzer: # Make api wait for analyzer
+        condition: service_started
     ports:
       - "8080:8080"
     networks:
       - safegate-net
 
-  # Comment out until Week 3-4 when we build these components
-  # analyzer:
-  #   image: your-docker-registry/safegate-analyzer:latest
-  #   build:
-  #     context: ./analyzer  # your Python AI/ML code
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     DB_URL: jdbc:mysql://mysql:3306/safegate_db
-  #     DB_USER: safegate_user
-  #     DB_PASS: SafeGate123!
-  #   depends_on:
-  #     - mysql
-  #   networks:
-  #     - safegate-net
+  # LLM Analyzer Service
+  analyzer:
+    build:
+      context: ./analyzer  # Path to your Python app
+      dockerfile: Dockerfile
+    container_name: safegate-analyzer
+    restart: unless-stopped
+    environment:
+      - ANALYZER_BACKEND=ollama
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=tinyllama
+      - ANALYZER_BATCH_SIZE=20
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - safegate-net
+    ports:
+      - "5001:5000"
+
+  # Ollama Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # Note: we do NOT publish Ollama's port to the host to avoid conflicts when a host Ollama is already running.
+    # Analyzer and API reach this service over the Docker network via http://ollama:11434.
+    # If you need to access Ollama from the host, create a docker-compose.override.yml with:
+    #   services:
+    #     ollama:
+    #       ports:
+    #         - "11435:11434"
+    networks:
+      - safegate-net
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # One-shot init to pre-pull small models so dropdown has entries by default
+  ollama-init:
+    image: curlimages/curl:8.5.0
+    container_name: ollama-init
+    depends_on:
+      ollama:
+        condition: service_started
+    networks:
+      - safegate-net
+    entrypoint: ["/bin/sh","-c"]
+    command: >-
+      "until curl -sf http://ollama:11434/api/tags >/dev/null; do echo 'Waiting for Ollama...'; sleep 2; done; \
+      for m in tinyllama phi 'phi3:mini' mistral llama2 'llama3.2:3b-instruct'; do \
+        echo Pulling $m; \
+        curl -sS -X POST http://ollama:11434/api/pull -d '{\"name\":\"'"$m"'\"}'; \
+      done; echo Done"
 
   # dashboard:
   #   image: your-docker-registry/safegate-dashboard:latest
@@ -66,6 +110,7 @@ services:
 
 volumes:
   mysql_data:
+  ollama_data:
 
 networks:
   safegate-net:

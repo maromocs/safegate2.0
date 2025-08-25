@@ -140,8 +140,14 @@ public class LLMService {
         }
         String base = analyzerBaseUrl(configOpt.get().getLlmApiUrl());
         try {
-            String m = URLEncoder.encode(model, StandardCharsets.UTF_8);
-            return restTemplate.getForObject(base + "/models/pull/progress?model=" + m, Map.class);
+            String url = org.springframework.web.util.UriComponentsBuilder
+                    .fromHttpUrl(base + "/models/pull/progress")
+                    .queryParam("model", model)
+                    .build()
+                    .encode()
+                    .toUriString();
+
+            return restTemplate.getForObject(url, Map.class);
         } catch (Exception e) {
             return Map.of("status", "unknown", "percent", 0, "completed", 0, "total", 0);
         }

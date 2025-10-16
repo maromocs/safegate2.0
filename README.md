@@ -161,3 +161,32 @@ This project is licensed under the [MIT License](LICENSE).
 ## Last Updated
 
 2025-07-25
+
+## GPU Acceleration with Ollama (RTX 3060 Ti or any CUDA GPU)
+
+SafeGate can leverage GPU acceleration for Ollama to speed up LLM inference.
+
+Prerequisites (host):
+- NVIDIA GPU (e.g., RTX 3060 Ti) with recent drivers installed
+- NVIDIA Container Toolkit installed and configured for Docker
+  - Ubuntu quick start:
+    - sudo apt-get install -y nvidia-container-toolkit
+    - sudo nvidia-ctk runtime configure
+    - sudo systemctl restart docker
+
+How to enable GPU mode:
+1) Start the stack with the GPU profile for the Ollama service:
+   - docker compose --profile gpu -f docker-compose.yml -f docker-compose.gpu.yml up -d
+   - CPU-only remains the default if you do not specify the gpu profile.
+2) In the UI (LLM Analyzer Configuration page):
+   - Check "Use GPU acceleration (CUDA)" and Save.
+   - This sets gpuEnabled in the backend config and the analyzer will hint GPU usage (options.num_gpu > 0).
+
+Notes:
+- If gpuEnabled is OFF or if you run without the gpu profile, analysis falls back to CPU (options.num_gpu = 0).
+- Analyzer will continue to function even if GPU is not available (fail-open) — it will treat requests as SAFE on infra errors.
+- The status banner shows Mode, Provider/Model, Analyzer reachability, whether LLM will analyze in current context, and GPU On/Off.
+
+Troubleshooting:
+- If you see errors accessing GPU, verify `docker compose ls` shows the stack started with the `gpu` profile and that `nvidia-smi` works on the host.
+- Some environments require logging out/in after installing NVIDIA Container Toolkit.

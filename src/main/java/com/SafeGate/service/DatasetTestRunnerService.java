@@ -21,6 +21,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -48,6 +50,22 @@ public class DatasetTestRunnerService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private LLMService llmService;
+
+    // Transient storage for last dataset LLM aggregation
+    private int lastLlmTotal = 0;
+    private int lastLlmMalicious = 0;
+    private int lastLlmSafe = 0;
+    private final List<Map<String, String>> lastLlmMaliciousList = new ArrayList<>();
+    private final List<String> lastPassedPayloadsForLlm = new ArrayList<>();
+
+    public synchronized List<String> consumePassedPayloadsForLlm() {
+        List<String> copy = new ArrayList<>(lastPassedPayloadsForLlm);
+        lastPassedPayloadsForLlm.clear();
+        return copy;
+    }
+
     /**
      * Runs a test using the provided dataset file
      * @param file The dataset file
@@ -72,6 +90,14 @@ public class DatasetTestRunnerService {
 
         // Start test mode
         testModeService.startTest();
+        // Reset transient LLM buffers
+        synchronized (lastPassedPayloadsForLlm) {
+            lastPassedPayloadsForLlm.clear();
+        }
+        lastLlmTotal = 0;
+        lastLlmMalicious = 0;
+        lastLlmSafe = 0;
+        lastLlmMaliciousList.clear();
 
         try {
             // Create a new test run
@@ -248,7 +274,8 @@ public class DatasetTestRunnerService {
                 restTemplate.postForEntity(testUrl, request, String.class);
             
                 // If we get here, the WAF did NOT block it (it passed)
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
             
@@ -256,7 +283,8 @@ public class DatasetTestRunnerService {
 
             } catch (HttpClientErrorException.Forbidden e) {
                 // This is the success case: the WAF blocked a malicious request (HTTP 403)
-                testModeService.recordBlockedRequest("Unknown Rule"); // We can improve this later
+                // Removed testModeService.recordBlockedRequest() to fix double-counting
+                testRun.setTotalBlocked(testRun.getTotalBlocked() + 1);
                 testRun.setTotalMaliciousBlocked(testRun.getTotalMaliciousBlocked() + 1);
             
                 logger.debug("Payload blocked: {}", payload.length() > 100 ? payload.substring(0, 97) + "..." : payload);
@@ -266,7 +294,8 @@ public class DatasetTestRunnerService {
                 // We count this as a "passed" request and log it for debugging.
                 logger.warn("Test request passed WAF but resulted in a client error ({}): {}", 
                         e.getStatusCode(), e.getResponseBodyAsString());
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
 
@@ -274,7 +303,8 @@ public class DatasetTestRunnerService {
                 // Other, more serious errors (e.g., connection refused, 5xx server errors).
                 // We'll log them but still count them as passed so the test can complete.
                 logger.error("Unexpected error sending payload in test: {}", e.getMessage());
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
             }
@@ -345,15 +375,21 @@ public class DatasetTestRunnerService {
                 }
             
                 // If we get here, the WAF did NOT block it (it passed)
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
+                // Append to transient buffer for post-run LLM batching
+                synchronized (lastPassedPayloadsForLlm) {
+                    lastPassedPayloadsForLlm.add(payload);
+                }
             
                 logger.debug("Request passed: {} {}", method, payload.length() > 100 ? payload.substring(0, 97) + "..." : payload);
 
             } catch (HttpClientErrorException.Forbidden e) {
                 // This is the success case: the WAF blocked a malicious request (HTTP 403)
-                testModeService.recordBlockedRequest("Unknown Rule"); // We can improve this later
+                // Removed testModeService.recordBlockedRequest() to fix double-counting
+                testRun.setTotalBlocked(testRun.getTotalBlocked() + 1);
                 testRun.setTotalMaliciousBlocked(testRun.getTotalMaliciousBlocked() + 1);
             
                 logger.debug("Request blocked: {} {}", method, payload.length() > 100 ? payload.substring(0, 97) + "..." : payload);
@@ -363,17 +399,25 @@ public class DatasetTestRunnerService {
                 // We count this as a "passed" request and log it for debugging.
                 logger.warn("Test request passed WAF but resulted in a client error ({}): {}", 
                         e.getStatusCode(), e.getResponseBodyAsString());
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
+                synchronized (lastPassedPayloadsForLlm) {
+                    lastPassedPayloadsForLlm.add(payload);
+                }
 
             } catch (Exception e) {
                 // Other, more serious errors (e.g., connection refused, 5xx server errors).
                 // We'll log them but still count them as passed so the test can complete.
                 logger.error("Unexpected error sending request in test: {}", e.getMessage());
-                testModeService.recordPassedRequest();
+                // Removed testModeService.recordPassedRequest() to fix double-counting
+                testRun.setTotalPassed(testRun.getTotalPassed() + 1);
                 PassedPayload passedPayload = new PassedPayload(payload, testRun);
                 testRun.getPassedPayloads().add(passedPayload);
+                synchronized (lastPassedPayloadsForLlm) {
+                    lastPassedPayloadsForLlm.add(payload);
+                }
             }
             
             processedCount++;

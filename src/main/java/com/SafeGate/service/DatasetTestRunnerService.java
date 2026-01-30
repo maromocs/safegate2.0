@@ -20,10 +20,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 /**
@@ -72,15 +74,16 @@ public class DatasetTestRunnerService {
      * @param datasetFormat The format of the dataset (TXT, CSV, JSON, XML, AUTO)
      * @param attackTypeTag Optional tag for the attack type
      * @param samplingSize Number of attacks to test (All, Random 100, Random 1000, etc.)
+     * @param seed Optional seed for deterministic sampling
      * @return The completed test run
      */
-    public TestRun runDatasetTest(MultipartFile file, String datasetFormat, String attackTypeTag, String samplingSize) {
+    public TestRun runDatasetTest(MultipartFile file, String datasetFormat, String attackTypeTag, String samplingSize, Long seed) {
         if (testModeService.isTestModeEnabled()) {
             throw new IllegalStateException("A test is already in progress.");
         }
 
-        logger.info("Starting dataset test with file: {}, format: {}, attackType: {}, samplingSize: {}", 
-                file.getOriginalFilename(), datasetFormat, attackTypeTag, samplingSize);
+        logger.info("Starting dataset test with file: {}, format: {}, attackType: {}, samplingSize: {}, seed: {}", 
+                file.getOriginalFilename(), datasetFormat, attackTypeTag, samplingSize, seed);
 
         // Validate file
         if (file.isEmpty()) {
@@ -100,15 +103,18 @@ public class DatasetTestRunnerService {
         lastLlmMaliciousList.clear();
 
         try {
-            // Create a new test run
-            TestRun testRun = testModeService.getCurrentTestRunState().orElseThrow(() -> 
-                new IllegalStateException("Failed to get current test run state"));
+            // Get the actual current test run to update its metadata
+            TestRun testRun = testModeService.getCurrentTestRun();
+            if (testRun == null) {
+                throw new IllegalStateException("Test run not found after starting");
+            }
             
             // Set dataset information
             testRun.setDatasetFileName(file.getOriginalFilename());
             testRun.setDatasetFormat(datasetFormat);
             testRun.setAttackTypeTag(attackTypeTag);
             testRun.setSamplingSize(samplingSize);
+            testRun.setSeedNumber(seed);
 
             logger.info("Parsing dataset file: {}", file.getOriginalFilename());
             
@@ -134,7 +140,7 @@ public class DatasetTestRunnerService {
             
             // Sample the requests if needed
             logger.info("[DEBUG_LOG] Before sampling: {} requests in dataset", requestDataList.size());
-            List<HttpRequestData> sampledRequests = sampleRequests(requestDataList, samplingSize);
+            List<HttpRequestData> sampledRequests = sampleRequests(requestDataList, samplingSize, seed);
             logger.info("After sampling: {} requests selected for testing", sampledRequests.size());
             logger.info("[DEBUG_LOG] Sampled requests size after sampleRequests call: {}", sampledRequests.size());
             
@@ -167,11 +173,12 @@ public class DatasetTestRunnerService {
      * Samples the payloads based on the sampling size
      * @param payloads The list of payloads
      * @param samplingSize The sampling size (All, Random 100, Random 1000, etc.)
+     * @param seed Optional seed for deterministic sampling
      * @return The sampled list of payloads
      * @deprecated Use sampleRequests instead
      */
     @Deprecated
-    private List<String> samplePayloads(List<String> payloads, String samplingSize) {
+    private List<String> samplePayloads(List<String> payloads, String samplingSize, Long seed) {
         if (samplingSize == null || samplingSize.equalsIgnoreCase("All")) {
             return payloads;
         }
@@ -199,7 +206,13 @@ public class DatasetTestRunnerService {
         // Randomly sample the payloads
         List<String> sampledPayloads = payloads.stream()
                 .collect(Collectors.toList()); // Create a copy of the list
-        java.util.Collections.shuffle(sampledPayloads);
+        
+        if (seed != null) {
+            logger.info("Using seed {} for deterministic sampling", seed);
+            Collections.shuffle(sampledPayloads, new Random(seed));
+        } else {
+            Collections.shuffle(sampledPayloads);
+        }
         
         // Create a new list instead of a view to avoid potential issues with subList
         return new ArrayList<>(sampledPayloads.subList(0, size));
@@ -209,10 +222,11 @@ public class DatasetTestRunnerService {
      * Samples the HTTP requests based on the sampling size
      * @param requests The list of HTTP requests
      * @param samplingSize The sampling size (All, Random 100, Random 1000, etc.)
+     * @param seed Optional seed for deterministic sampling
      * @return The sampled list of HTTP requests
      */
-    private List<HttpRequestData> sampleRequests(List<HttpRequestData> requests, String samplingSize) {
-        logger.info("[DEBUG_LOG] sampleRequests called with samplingSize: {}, original requests size: {}", samplingSize, requests.size());
+    private List<HttpRequestData> sampleRequests(List<HttpRequestData> requests, String samplingSize, Long seed) {
+        logger.info("[DEBUG_LOG] sampleRequests called with samplingSize: {}, seed: {}, original requests size: {}", samplingSize, seed, requests.size());
         
         if (samplingSize == null || samplingSize.equalsIgnoreCase("All")) {
             logger.info("[DEBUG_LOG] Using all requests: {}", requests.size());
@@ -244,7 +258,13 @@ public class DatasetTestRunnerService {
         // Randomly sample the requests
         List<HttpRequestData> sampledRequests = requests.stream()
                 .collect(Collectors.toList()); // Create a copy of the list
-        java.util.Collections.shuffle(sampledRequests);
+        
+        if (seed != null) {
+            logger.info("Using seed {} for deterministic sampling", seed);
+            Collections.shuffle(sampledRequests, new Random(seed));
+        } else {
+            Collections.shuffle(sampledRequests);
+        }
         
         // Create a new list instead of a view to avoid potential issues with subList
         List<HttpRequestData> result = new ArrayList<>(sampledRequests.subList(0, size));

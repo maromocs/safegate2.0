@@ -106,12 +106,13 @@ public class TestController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "datasetFormat", required = false, defaultValue = "AUTO") String datasetFormat,
             @RequestParam(value = "attackTypeTag", required = false) String attackTypeTag,
-            @RequestParam(value = "samplingSize", required = false, defaultValue = "All") String samplingSize) {
+            @RequestParam(value = "samplingSize", required = false, defaultValue = "All") String samplingSize,
+            @RequestParam(value = "seed", required = false) Long seed) {
         try {
             Map<String, Object> result = new HashMap<>();
             
             // Run the dataset test
-            TestRun completedTest = datasetTestRunnerService.runDatasetTest(file, datasetFormat, attackTypeTag, samplingSize);
+            TestRun completedTest = datasetTestRunnerService.runDatasetTest(file, datasetFormat, attackTypeTag, samplingSize, seed);
             
             // Add the detected format to the response
             result.put("testRun", completedTest);

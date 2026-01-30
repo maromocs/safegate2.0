@@ -27,6 +27,7 @@ public class TestRun {
     private String datasetFormat;
     private String attackTypeTag;
     private String samplingSize;
+    private Long seedNumber;
     
     // Fields for malicious attack analysis
     private long totalMaliciousRequests = 0;
@@ -55,6 +56,13 @@ public class TestRun {
                 params.append(", ");
             }
             params.append("Sample: ").append(samplingSize);
+        }
+        
+        if (seedNumber != null) {
+            if (params.length() > 0) {
+                params.append(", ");
+            }
+            params.append("Seed: ").append(seedNumber);
         }
         
         if (params.length() == 0) {

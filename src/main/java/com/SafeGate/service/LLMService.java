@@ -66,7 +66,7 @@ public class LLMService {
     public Map analyzeSingle(String payload) {
         Optional<LLMConfig> configOpt = getConfig();
         if (configOpt.isEmpty() || configOpt.get().getLlmApiUrl() == null) {
-            return Map.of("is_malicious", false, "category", "OTHER", "reason", "LLM disabled");
+            return Map.of("is_malicious", false, "category", "SAFE", "reason", "LLM disabled");
         }
         LLMConfig config = configOpt.get();
         try {
@@ -76,10 +76,10 @@ public class LLMService {
             if (config.getModel() != null) request.put("model", config.getModel());
             request.put("gpu_enabled", Boolean.TRUE.equals(config.getGpuEnabled()));
             Map response = restTemplate.postForObject(config.getLlmApiUrl(), request, Map.class);
-            if (response == null) return Map.of("is_malicious", false, "category", "OTHER", "reason", "No response");
+            if (response == null) return Map.of("is_malicious", false, "category", "SAFE", "reason", "No response");
             return response;
         } catch (Exception e) {
-            return Map.of("is_malicious", false, "category", "OTHER", "reason", "Analyzer error: "+e.getMessage());
+            return Map.of("is_malicious", false, "category", "SAFE", "reason", "Analyzer error: "+e.getMessage());
         }
     }
 

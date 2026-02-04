@@ -129,7 +129,21 @@
         <h3>LLM Dataset Analysis Results</h3>
         <div id="llm-counters"></div>
         <div id="llm-bycategory"></div>
-        <div id="llm-malicious-list"></div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="download-safe-btn" type="button" style="background-color: #2e7d32;">Download SAFE Payloads (TXT)</button>
+            <button id="download-malicious-btn" type="button" style="background-color: #c62828;">Download MALICIOUS Payloads (TXT)</button>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">Malicious Payloads</h4>
+            <div id="llm-malicious-list"></div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">Safe Payloads</h4>
+            <div id="llm-safe-list"></div>
+        </div>
     </div>
 
     <!-- Error message container -->
@@ -172,6 +186,89 @@
     const statusContent = document.getElementById('status-content');
     const llmStatusBanner = document.getElementById('llm-status-banner');
     const refreshLlmStatusBtn = document.getElementById('refresh-llm-status');
+
+    let currentMaliciousPayloads = [];
+    let currentSafePayloads = [];
+
+    function renderPayloadTable(items, containerId) {
+        const container = document.getElementById(containerId);
+        if (!items || items.length === 0) {
+            container.innerHTML = '<em>None found.</em>';
+            return;
+        }
+
+        let html = '<table style="width:100%; border-collapse: collapse;">';
+        html += '<thead><tr style="border-bottom: 1px solid #555;"><th style="text-align:left;">Verdict/Category</th><th style="text-align:right;">Action</th></tr></thead><tbody>';
+        
+        items.forEach((it, idx) => {
+            const id = `${containerId}-${idx}`;
+            const payload = escapeHtml(String(it.payload || ''));
+            const category = escapeHtml(String(it.category || ''));
+            const reason = escapeHtml(String(it.reason || ''));
+            const isMalicious = it.is_malicious === true;
+            
+            html += `
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 8px 0;">
+                        <span style="color: ${isMalicious ? '#ff6b6b' : '#6bff6b'}; font-weight: bold;">${isMalicious ? 'MALICIOUS' : 'SAFE'}</span> - ${category}
+                    </td>
+                    <td style="padding: 8px 0; text-align: right;">
+                        <button type="button" onclick="togglePayloadDetails('${id}')" style="padding: 2px 8px; font-size: 0.8rem; background-color: #444;">Expand/Collapse</button>
+                    </td>
+                </tr>
+                <tr id="${id}" style="display:none; background-color: #111;">
+                    <td colspan="2" style="padding: 10px; border: 1px dashed #555;">
+                        <div style="margin-bottom: 5px;"><strong>Raw Payload:</strong></div>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #000; padding: 10px; border-radius: 4px; color: #eee; font-family: monospace;">${payload}</pre>
+                        <div style="margin-top: 8px;"><strong>Reasoning:</strong> ${reason}</div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    window.togglePayloadDetails = function(id) {
+        const el = document.getElementById(id);
+        if (el.style.display === 'none') {
+            el.style.display = 'table-row';
+        } else {
+            el.style.display = 'none';
+        }
+    };
+
+    function downloadPayloads(items, type) {
+        if (!items || items.length === 0) {
+            alert("No payloads available to download.");
+            return;
+        }
+        
+        let content = "";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        let filename = `llm_${type}_payloads_${timestamp}.txt`;
+        
+        if (type === 'safe') {
+            content = "SAFE PAYLOADS REPORT\n";
+            content += "=".repeat(20) + "\n\n";
+            content += items.map((it, idx) => `[Entry ${idx+1}]\n${it.payload}`).join("\n\n" + "-".repeat(10) + "\n\n");
+        } else {
+            content = "MALICIOUS PAYLOADS REPORT\n";
+            content += "=".repeat(20) + "\n\n";
+            content += items.map((it, idx) => `[Entry ${idx+1}]\nCategory: ${it.category}\nPayload: ${it.payload}`).join("\n\n" + "-".repeat(10) + "\n\n");
+        }
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
 
     function refreshLlmStatus() {
         Promise.all([
@@ -278,7 +375,6 @@
                     const llmDiv = document.getElementById('llm-results');
                     const countersDiv = document.getElementById('llm-counters');
                     const byCatDiv = document.getElementById('llm-bycategory');
-                    const listDiv = document.getElementById('llm-malicious-list');
                     llmDiv.style.display = 'block';
 
                     const s = data.llmStats;
@@ -292,20 +388,11 @@
                     bcHtml += '</ul>';
                     byCatDiv.innerHTML = bcHtml;
 
-                    const items = data.llmMaliciousPayloads || [];
-                    if (items.length > 0) {
-                        let tbl = '<table><thead><tr><th>Payload</th><th>Category</th><th>Reason</th></tr></thead><tbody>';
-                        items.forEach(it => {
-                            const p = escapeHtml(String(it.payload || ''));
-                            const c = escapeHtml(String(it.category || ''));
-                            const r = escapeHtml(String(it.reason || ''));
-                            tbl += `<tr><td>${p}</td><td>${c}</td><td>${r}</td></tr>`;
-                        });
-                        tbl += '</tbody></table>';
-                        listDiv.innerHTML = tbl;
-                    } else {
-                        listDiv.innerHTML = '<em>No malicious payloads flagged by LLM.</em>';
-                    }
+                    currentMaliciousPayloads = data.llmMaliciousPayloads || [];
+                    currentSafePayloads = data.llmSafePayloads || [];
+                    
+                    renderPayloadTable(currentMaliciousPayloads, 'llm-malicious-list');
+                    renderPayloadTable(currentSafePayloads, 'llm-safe-list');
                 }
                 
                 checkStatus();
@@ -606,6 +693,17 @@
                 handleFileSelection();
             }
         });
+
+        // Add event listeners for download buttons
+        const downloadSafeBtn = document.getElementById('download-safe-btn');
+        const downloadMaliciousBtn = document.getElementById('download-malicious-btn');
+        
+        if (downloadSafeBtn) {
+            downloadSafeBtn.addEventListener('click', () => downloadPayloads(currentSafePayloads, 'safe'));
+        }
+        if (downloadMaliciousBtn) {
+            downloadMaliciousBtn.addEventListener('click', () => downloadPayloads(currentMaliciousPayloads, 'malicious'));
+        }
     });
 </script>
 </body>

@@ -103,12 +103,14 @@ async def _track_pull_progress(model: str):
 async def _ollama_generate(prompt: str, model: str, gpu_enabled: Optional[bool] = None) -> str:
     url = f"{OLLAMA_HOST}/api/generate"
     options: Dict[str, Any] = {"temperature": 0}
-    # If gpu_enabled is explicitly provided, set num_gpu accordingly (0 for CPU).
+    # If gpu_enabled is explicitly provided, set num_gpu accordingly
     if gpu_enabled is False:
+        # User disabled GPU: force CPU only
         options["num_gpu"] = 0
     elif gpu_enabled is True:
-        # Hint to use GPU; number may be adjusted by Ollama/runtime
-        options["num_gpu"] = 1
+        # User enabled GPU: use all available GPU layers for maximum performance
+        options["num_gpu"] = 999
+    # If gpu_enabled is None, don't set num_gpu (let Ollama decide based on availability)
     body = {
         "model": model,
         "prompt": prompt,

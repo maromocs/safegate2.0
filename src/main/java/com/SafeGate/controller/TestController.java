@@ -106,12 +106,13 @@ public class TestController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "datasetFormat", required = false, defaultValue = "AUTO") String datasetFormat,
             @RequestParam(value = "attackTypeTag", required = false) String attackTypeTag,
-            @RequestParam(value = "samplingSize", required = false, defaultValue = "All") String samplingSize) {
+            @RequestParam(value = "samplingSize", required = false, defaultValue = "All") String samplingSize,
+            @RequestParam(value = "seed", required = false) Long seed) {
         try {
             Map<String, Object> result = new HashMap<>();
             
             // Run the dataset test
-            TestRun completedTest = datasetTestRunnerService.runDatasetTest(file, datasetFormat, attackTypeTag, samplingSize);
+            TestRun completedTest = datasetTestRunnerService.runDatasetTest(file, datasetFormat, attackTypeTag, samplingSize, seed);
             
             // Add the detected format to the response
             result.put("testRun", completedTest);
@@ -167,25 +168,31 @@ public class TestController {
                     }
 
                     result.put("llmStats", stats);
-                    // Build a compact list of malicious payloads for UI convenience
+                    // Build lists of malicious and safe payloads for UI convenience
                     List<Map<String, Object>> maliciousList = new ArrayList<>();
+                    List<Map<String, Object>> safeList = new ArrayList<>();
                     if (resultsObj instanceof List) {
                         List results = (List) resultsObj;
                         for (Object item : results) {
                             if (item instanceof Map) {
                                 Map itemMap = (Map) item;
                                 Object mal = itemMap.get("is_malicious");
-                                if (mal instanceof Boolean && (Boolean) mal) {
-                                    Map<String, Object> row = new HashMap<>();
-                                    row.put("payload", itemMap.get("payload"));
-                                    row.put("category", itemMap.get("category"));
-                                    row.put("reason", itemMap.get("reason"));
+                                boolean isMalicious = (mal instanceof Boolean) && (Boolean) mal;
+                                Map<String, Object> row = new HashMap<>();
+                                row.put("payload", itemMap.get("payload"));
+                                row.put("category", itemMap.get("category"));
+                                row.put("reason", itemMap.get("reason"));
+                                row.put("is_malicious", isMalicious);
+                                if (isMalicious) {
                                     maliciousList.add(row);
+                                } else {
+                                    safeList.add(row);
                                 }
                             }
                         }
                     }
                     result.put("llmMaliciousPayloads", maliciousList);
+                    result.put("llmSafePayloads", safeList);
                 }
             } else {
                 String mode = llmService.getConfig().map(cfg -> String.valueOf(cfg.getLlmMode())).orElse("DISABLED");

@@ -103,12 +103,14 @@ async def _track_pull_progress(model: str):
 async def _ollama_generate(prompt: str, model: str, gpu_enabled: Optional[bool] = None) -> str:
     url = f"{OLLAMA_HOST}/api/generate"
     options: Dict[str, Any] = {"temperature": 0}
-    # If gpu_enabled is explicitly provided, set num_gpu accordingly (0 for CPU).
+    # If gpu_enabled is explicitly provided, set num_gpu accordingly
     if gpu_enabled is False:
+        # User disabled GPU: force CPU only
         options["num_gpu"] = 0
     elif gpu_enabled is True:
-        # Hint to use GPU; number may be adjusted by Ollama/runtime
-        options["num_gpu"] = 1
+        # User enabled GPU: use all available GPU layers for maximum performance
+        options["num_gpu"] = 999
+    # If gpu_enabled is None, don't set num_gpu (let Ollama decide based on availability)
     body = {
         "model": model,
         "prompt": prompt,
@@ -132,8 +134,7 @@ async def _ollama_pull_if_needed(model: str) -> Optional[str]:
         return str(e)
 
 CATEGORIES = [
-    "SQL_INJECTION","XSS","PATH_TRAVERSAL","COMMAND_INJECTION","AUTH_BYPASS",
-    "LFI","RFI","SSRF","OPEN_REDIRECT","DESERIALIZATION","OTHER"
+    "SQL_INJECTION","XSS","PATH_TRAVERSAL","OTHER","SAFE"
 ]
 
 def _build_prompt(payload: str) -> str:
@@ -143,11 +144,12 @@ def _build_prompt(payload: str) -> str:
         "Rules:\n"
         "- VERDICT must be exactly SAFE or MALICIOUS.\n"
         "- CATEGORY must be one of:\n"
-        "  - SQL_INJECTION\n  - XSS\n  - PATH_TRAVERSAL\n  - COMMAND_INJECTION\n  - AUTH_BYPASS\n  - LFI\n  - RFI\n  - SSRF\n  - OPEN_REDIRECT\n  - DESERIALIZATION\n  - OTHER\n"
-        "- If VERDICT is SAFE, still provide CATEGORY=OTHER.\n"
+        "  - SQL_INJECTION\n  - XSS\n  - PATH_TRAVERSAL\n  - OTHER\n"
+        "- If VERDICT is SAFE, do NOT provide a CATEGORY (leave it blank or omit it).\n"
+        "- If VERDICT is MALICIOUS, CATEGORY should be SQL_INJECTION, XSS, or PATH_TRAVERSAL if it matches; otherwise OTHER.\n"
         "- Output format MUST be exactly two lines:\n"
         "  VERDICT:<SAFE|MALICIOUS>\n"
-        "  CATEGORY:<ONE_OF_THE_ABOVE>\n\n"
+        "  CATEGORY:<ONE_OF_THE_ABOVE_OR_BLANK_IF_SAFE>\n\n"
         f"Request:\n{payload}\n"
     )
 
@@ -166,11 +168,11 @@ async def _classify_with_ollama(payload: str, model: str, gpu_enabled: Optional[
             try:
                 text = await _ollama_generate(prompt, model)
             except Exception as e2:
-                return AnalysisResponse(is_malicious=False, category="OTHER", reason=f"Ollama error after pull attempt: {e2}")
+                return AnalysisResponse(is_malicious=False, category="SAFE", reason=f"Ollama error after pull attempt: {e2}")
         else:
-            return AnalysisResponse(is_malicious=False, category="OTHER", reason=f"Ollama HTTP error: {he}")
+            return AnalysisResponse(is_malicious=False, category="SAFE", reason=f"Ollama HTTP error: {he}")
     except Exception as e:
-        return AnalysisResponse(is_malicious=False, category="OTHER", reason=f"Ollama error: {e}")
+        return AnalysisResponse(is_malicious=False, category="SAFE", reason=f"Ollama error: {e}")
 
     # Parse strict two-line output
     verdict = None
@@ -193,13 +195,29 @@ async def _classify_with_ollama(payload: str, model: str, gpu_enabled: Optional[
             verdict = "MALICIOUS"
         elif "SAFE" in upall:
             verdict = "SAFE"
+
+    # If category is still None, try to infer from any mention in the text
     if category is None:
-        category = "OTHER"
+        upall = text.upper()
+        # Prioritize specific malicious categories
+        if "SQL_INJECTION" in upall:
+            category = "SQL_INJECTION"
+        elif "XSS" in upall:
+            category = "XSS"
+        elif "PATH_TRAVERSAL" in upall:
+            category = "PATH_TRAVERSAL"
+        elif "OTHER" in upall:
+            category = "OTHER"
+
+    # Rule: If category is one of the malicious ones, it is malicious
+    if category in ("SQL_INJECTION", "XSS", "PATH_TRAVERSAL", "OTHER"):
+        return AnalysisResponse(is_malicious=True, category=category, reason=f"LLM classified as {category}")
 
     if verdict == "MALICIOUS":
-        return AnalysisResponse(is_malicious=True, category=category, reason="LLM classified as MALICIOUS")
+        return AnalysisResponse(is_malicious=True, category="OTHER", reason="LLM classified as MALICIOUS")
+
     if verdict == "SAFE":
-        return AnalysisResponse(is_malicious=False, category="OTHER", reason="LLM classified as SAFE")
+        return AnalysisResponse(is_malicious=False, category="SAFE", reason="LLM classified as SAFE")
 
     # Fallback heuristic if parsing failed badly
     pl = payload.lower()
@@ -209,7 +227,7 @@ async def _classify_with_ollama(payload: str, model: str, gpu_enabled: Optional[
         return AnalysisResponse(is_malicious=True, category="SQL_INJECTION", reason="Heuristic: SQLi tokens present")
     if "../" in pl:
         return AnalysisResponse(is_malicious=True, category="PATH_TRAVERSAL", reason="Heuristic: path traversal")
-    return AnalysisResponse(is_malicious=False, category="OTHER", reason=f"Unclear model response '{text[:40]}', defaulting SAFE")
+    return AnalysisResponse(is_malicious=False, category="SAFE", reason=f"Unclear model response '{text[:40]}', defaulting SAFE")
 
 async def analyze_with_backend(payload: str, provider: Optional[str], model: Optional[str], gpu_enabled: Optional[bool] = None) -> AnalysisResponse:
     provider = (provider or ("ollama" if ANALYZER_BACKEND == "ollama" else "mock")).lower()
@@ -228,7 +246,7 @@ async def analyze_with_backend(payload: str, provider: Optional[str], model: Opt
             return AnalysisResponse(is_malicious=True, category="SQL_INJECTION", reason="Mock heuristic: SQLi tokens")
         if "../" in pl:
             return AnalysisResponse(is_malicious=True, category="PATH_TRAVERSAL", reason="Mock heuristic: path traversal")
-        return AnalysisResponse(is_malicious=False, category="OTHER", reason="Mock: appears safe")
+        return AnalysisResponse(is_malicious=False, category="SAFE", reason="Mock: appears safe")
 
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_payload(request: RequestPayload):

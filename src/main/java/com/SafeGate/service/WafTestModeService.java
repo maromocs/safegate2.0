@@ -63,9 +63,9 @@ public class WafTestModeService {
         }
     }
 
-    public void recordBlockedRequest(String ruleName) {
+    public void recordBlockedRequest(String detectionCategory) {
         if (testModeEnabled) {
-            blockedRequestCounts.computeIfAbsent(ruleName, k -> new AtomicLong(0)).incrementAndGet();
+            blockedRequestCounts.computeIfAbsent(detectionCategory, k -> new AtomicLong(0)).incrementAndGet();
         }
     }
 
@@ -86,4 +86,7 @@ public class WafTestModeService {
         snapshot.setTotalBlocked(totalBlocked);
         return Optional.of(snapshot);
     }
+
+    public boolean isTestModeEnabled() { return testModeEnabled; }
+    public TestRun getCurrentTestRun() { return currentTestRun; }
 }

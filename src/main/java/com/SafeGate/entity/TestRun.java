@@ -80,4 +80,34 @@ public class TestRun {
         }
         return (double) totalMaliciousBlocked / totalMaliciousRequests * 100.0;
     }
+
+    // Manual getters/setters to fix build issues when Lombok fails
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+    public LocalDateTime getEndTime() { return endTime; }
+    public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+    public long getTotalPassed() { return totalPassed; }
+    public void setTotalPassed(long totalPassed) { this.totalPassed = totalPassed; }
+    public long getTotalBlocked() { return totalBlocked; }
+    public void setTotalBlocked(long totalBlocked) { this.totalBlocked = totalBlocked; }
+    public String getDatasetFileName() { return datasetFileName; }
+    public void setDatasetFileName(String datasetFileName) { this.datasetFileName = datasetFileName; }
+    public String getDatasetFormat() { return datasetFormat; }
+    public void setDatasetFormat(String datasetFormat) { this.datasetFormat = datasetFormat; }
+    public String getAttackTypeTag() { return attackTypeTag; }
+    public void setAttackTypeTag(String attackTypeTag) { this.attackTypeTag = attackTypeTag; }
+    public String getSamplingSize() { return samplingSize; }
+    public void setSamplingSize(String samplingSize) { this.samplingSize = samplingSize; }
+    public Long getSeedNumber() { return seedNumber; }
+    public void setSeedNumber(Long seedNumber) { this.seedNumber = seedNumber; }
+    public long getTotalMaliciousRequests() { return totalMaliciousRequests; }
+    public void setTotalMaliciousRequests(long totalMaliciousRequests) { this.totalMaliciousRequests = totalMaliciousRequests; }
+    public long getTotalMaliciousBlocked() { return totalMaliciousBlocked; }
+    public void setTotalMaliciousBlocked(long totalMaliciousBlocked) { this.totalMaliciousBlocked = totalMaliciousBlocked; }
+    public List<TestRunBlockCount> getBlockCounts() { return blockCounts; }
+    public void setBlockCounts(List<TestRunBlockCount> blockCounts) { this.blockCounts = blockCounts; }
+    public List<PassedPayload> getPassedPayloads() { return passedPayloads; }
+    public void setPassedPayloads(List<PassedPayload> passedPayloads) { this.passedPayloads = passedPayloads; }
 }

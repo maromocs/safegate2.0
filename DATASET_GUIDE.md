@@ -1,6 +1,6 @@
-# Dataset Testing Guide for SafeGate WAF
+# Dataset Testing Guide for SafeGate LLM Test Harness
 
-This guide provides comprehensive information on how to use the dataset testing feature of the SafeGate Web Application Firewall (WAF). The feature allows you to test large collections of attack payloads against your WAF rules to evaluate their effectiveness.
+This guide explains how to evaluate security datasets using SafeGate’s LLM-only test harness. The feature tests collections of attack payloads using the configured LLM model (no signature rules).
 
 ## Overview
 
@@ -10,13 +10,13 @@ The dataset testing feature:
 - Provides detailed reporting on test results
 - Works efficiently by testing payloads directly against rules in memory
 
-## How the WAF Testing Works
+## How the LLM Testing Works
 
 The dataset testing feature **does not** use HTTP requests to test the WAF. Instead:
 
 1. It extracts payloads from your uploaded file
-2. It directly tests each payload against the WAF rules in memory
-3. It records which payloads were blocked and which passed
+2. It sends all payloads to the analyzer for batch LLM evaluation
+3. It records which payloads the LLM flagged as malicious and which it considered safe
 
 This is more efficient than sending actual HTTP requests, especially for large datasets.
 
@@ -25,7 +25,7 @@ This is more efficient than sending actual HTTP requests, especially for large d
 ### Web Interface
 
 1. **Access the Testing Dashboard**:
-   - Navigate to the "Testing" page in the SafeGate WAF interface
+   - Navigate to the "Dataset Testing" page in the SafeGate interface
 
 2. **Upload a Dataset**:
    - In the "Automated Dataset Test" section, click "Choose File" and select your dataset file
@@ -38,12 +38,12 @@ This is more efficient than sending actual HTTP requests, especially for large d
 
 4. **Start the Test**:
    - Click "Start New Test"
-   - The system will process the dataset and test payloads against your active WAF rules
+   - The system will process the dataset and analyze payloads with the configured LLM model
 
 5. **View Results**:
    - After the test completes, you'll see detailed results in the "Completed Test Runs" section
-   - The results will show which payloads were blocked and which passed
-   - You can use this information to improve your WAF rules
+   - The results will show which payloads were flagged as malicious and which were safe
+   - You can use this information to evaluate/tune your LLM model, prompts, and configuration
 
 ### Command Line Testing
 
@@ -150,7 +150,7 @@ The CSIC 2010 dataset is a common dataset for testing WAFs, and the dataset test
 ### Steps to Test with CSIC 2010 Dataset
 
 1. **Upload the Dataset**:
-   - Go to the "Testing" page in the SafeGate WAF interface
+   - Go to the "Dataset Testing" page in the SafeGate interface
    - In the "Automated Dataset Test" section, click "Choose File" and select your CSIC 2010 CSV file
    - The system will automatically detect the file as CSV format
 
@@ -161,12 +161,12 @@ The CSIC 2010 dataset is a common dataset for testing WAFs, and the dataset test
 
 3. **Start the Test**:
    - Click "Start New Test"
-   - The system will process the dataset, extract payloads from the "payload" column, and test them against your active WAF rules
+   - The system will process the dataset, extract payloads from the "payload" column, and analyze them with the configured LLM model
 
 4. **View Results**:
    - After the test completes, you'll see detailed results in the "Completed Test Runs" section
-   - The results will show which payloads were blocked and which passed
-   - You can use this information to improve your WAF rules
+   - The results will show which payloads were flagged as malicious and which were safe
+   - You can use this information to evaluate/tune your LLM model, prompts, and configuration
 
 ### Command Line Testing with CSIC Dataset
 
@@ -204,8 +204,8 @@ If auto-detection fails, you can explicitly select the format.
 
 1. **Start with small samples**: Use "Random 100" to quickly test a subset of payloads
 2. **Tag your tests**: Use the attackTypeTag parameter to categorize different types of tests
-3. **Review passed payloads**: Focus on payloads that passed through the WAF to identify rule gaps
-4. **Iterate on rules**: Update your WAF rules based on test results and run tests again
+3. **Review safe payloads**: Focus on payloads that the LLM considered safe to identify detection gaps
+4. **Tune model/prompts**: Adjust model choice, prompts, and configuration based on test results and run tests again
 5. **Use multiple datasets**: Test with different datasets to cover various attack vectors
 
 ## Last Updated

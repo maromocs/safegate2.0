@@ -25,7 +25,7 @@ public class BlockedRequest {
     private String sourceIp;
     
     @Column(name = "matched_pattern", nullable = false)
-    private String matchedPattern;
+    private String detectionCategory;
     
     @Column(name = "raw_payload", columnDefinition = "TEXT")
     private String rawPayload;
@@ -49,11 +49,31 @@ public class BlockedRequest {
         }
     }
     
-    public BlockedRequest(String sourceIp, String matchedPattern, String rawPayload, String ruleId) {
+    public BlockedRequest(String sourceIp, String detectionCategory, String rawPayload, String ruleId) {
         this.sourceIp = sourceIp;
-        this.matchedPattern = matchedPattern;
+        this.detectionCategory = detectionCategory;
         this.rawPayload = rawPayload;
         this.ruleId = ruleId;
         this.timestamp = Instant.now();
     }
+
+    // Manual getters/setters to fix build issues when Lombok fails
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Instant getTimestamp() { return timestamp; }
+    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    public String getSourceIp() { return sourceIp; }
+    public void setSourceIp(String sourceIp) { this.sourceIp = sourceIp; }
+    public String getDetectionCategory() { return detectionCategory; }
+    public void setDetectionCategory(String detectionCategory) { this.detectionCategory = detectionCategory; }
+    public String getRawPayload() { return rawPayload; }
+    public void setRawPayload(String rawPayload) { this.rawPayload = rawPayload; }
+    public String getRuleId() { return ruleId; }
+    public void setRuleId(String ruleId) { this.ruleId = ruleId; }
+    public String getRequestMethod() { return requestMethod; }
+    public void setRequestMethod(String requestMethod) { this.requestMethod = requestMethod; }
+    public String getRequestUri() { return requestUri; }
+    public void setRequestUri(String requestUri) { this.requestUri = requestUri; }
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
 }

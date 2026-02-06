@@ -26,4 +26,12 @@ public class PassedPayload {
         this.payload = payload;
         this.testRun = testRun;
     }
+
+    // Manual getters/setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getPayload() { return payload; }
+    public void setPayload(String payload) { this.payload = payload; }
+    public TestRun getTestRun() { return testRun; }
+    public void setTestRun(TestRun testRun) { this.testRun = testRun; }
 }

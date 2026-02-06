@@ -3,10 +3,8 @@ package com.SafeGate.filter;
 import com.SafeGate.entity.BlockedRequest;
 import com.SafeGate.enums.LLMMode;
 import com.SafeGate.model.LLMConfig;
-import com.SafeGate.model.SignatureRule;
 import com.SafeGate.repository.BlockedRequestRepository;
 import com.SafeGate.service.LLMService;
-import com.SafeGate.service.SignatureRulesEngine;
 import com.SafeGate.service.WafTestModeService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,9 +30,6 @@ public class WafFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(WafFilter.class);
 
     @Autowired
-    private SignatureRulesEngine signatureRulesEngine;
-
-    @Autowired
     private BlockedRequestRepository blockedRequestRepository;
 
     @Autowired
@@ -45,7 +40,6 @@ public class WafFilter implements Filter {
 
     private static final List<String> EXCLUDED_PATHS = Arrays.asList(
             "/api/logs",
-            "/api/rules",
             "/api/tests",
             "/api/llm",
             "/actuator"
@@ -72,52 +66,10 @@ public class WafFilter implements Filter {
         }
 
         String normalizedPayload = normalizeRequest(httpRequest);
-        Optional<SignatureRule> matchingRule = signatureRulesEngine.getMatchingRule(normalizedPayload);
 
-        if (matchingRule.isPresent()) {
-            // Request is BLOCKED
-            SignatureRule rule = matchingRule.get();
-            long blockedRequestId = -1; // Default value, used when not saving
-
-            if (testModeService.isTestModeEnabled()) {
-                testModeService.recordBlockedRequest(rule.getName());
-                logger.warn("BLOCKED (TEST MODE) - Rule: {} | IP: {}", rule.getName(), getClientIpAddress(httpRequest));
-            } else {
-                BlockedRequest blockedRequest = new BlockedRequest(
-                    getClientIpAddress(httpRequest),
-                    rule.getName(),
-                    normalizedPayload,
-                    rule.getRuleId()
-                );
-                blockedRequest.setRequestMethod(httpRequest.getMethod());
-                blockedRequest.setRequestUri(httpRequest.getRequestURI());
-                blockedRequest.setUserAgent(httpRequest.getHeader("User-Agent"));
-
-                try {
-                    BlockedRequest savedRequest = blockedRequestRepository.save(blockedRequest);
-                    blockedRequestId = savedRequest.getId();
-                    logger.warn("BLOCKED & SAVED - Rule: {} | IP: {} | ID: {}",
-                               rule.getName(), getClientIpAddress(httpRequest), blockedRequestId);
-                } catch (Exception e) {
-                    logger.error("Failed to save blocked request", e);
-                }
-            }
-
-            httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            httpResponse.setContentType("application/json");
-            httpResponse.getWriter().write(String.format(
-                "{\"error\":\"Blocked by WAF\",\"rule\":\"%s\",\"id\":%d}",
-                rule.getName(), blockedRequestId
-            ));
-            return; // End the filter chain here
-        }
-
-        // If request is not blocked by rules, check with LLM
         // During dataset tests, avoid invoking LLM on the test harness path to allow batch processing later
         if (testModeService.isTestModeEnabled() && httpRequest.getRequestURI().startsWith("/api/test/test-harness")) {
-            if (testModeService.isTestModeEnabled()) {
-                testModeService.recordPassedRequest();
-            }
+            testModeService.recordPassedRequest();
             chain.doFilter(request, response);
             return;
         }

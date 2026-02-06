@@ -91,7 +91,8 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
-  # One-shot init to pre-pull small models so dropdown has entries by default
+  # One-shot init to pre-pull ONLY tinyllama (smallest model ~600MB)
+  # Models are stored in ollama_data volume, so they persist between restarts
   ollama-init:
     image: curlimages/curl:8.5.0
     container_name: ollama-init
@@ -103,10 +104,17 @@ services:
     entrypoint: ["/bin/sh","-c"]
     command: >-
       "until curl -sf http://ollama:11434/api/tags >/dev/null; do echo 'Waiting for Ollama...'; sleep 2; done; \
-      for m in tinyllama phi 'phi3:mini' mistral llama2 'llama3.2:3b-instruct'; do \
-        echo Pulling $$m; \
-        curl -sS -X POST http://ollama:11434/api/pull -d \"{\\\"name\\\":\\\"$$m\\\"}\"; \
-      done; echo Done"
+      echo 'Checking for existing models...'; \
+      MODELS=$$(curl -s http://ollama:11434/api/tags | grep -o '\"name\":\"[^\"]*\"' | cut -d'\"' -f4); \
+      echo \"Found models: $$MODELS\"; \
+      if echo \"$$MODELS\" | grep -q 'tinyllama'; then \
+        echo 'tinyllama already exists, skipping download'; \
+      else \
+        echo 'Pulling tinyllama (600MB)...'; \
+        curl -sS -X POST http://ollama:11434/api/pull -d '{\"name\":\"tinyllama\"}'; \
+        echo 'tinyllama downloaded'; \
+      fi; \
+      echo 'Init complete. Pull additional models from the LLM Config page in SafeGate UI.'"
 
   # dashboard:
   #   image: your-docker-registry/safegate-dashboard:latest

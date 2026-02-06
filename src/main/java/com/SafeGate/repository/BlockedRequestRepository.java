@@ -14,13 +14,13 @@ import java.util.List;
 public interface BlockedRequestRepository extends JpaRepository<BlockedRequest, Long> {
     
     List<BlockedRequest> findAllByOrderByTimestampDesc();
-    List<BlockedRequest> findByMatchedPatternOrderByTimestampDesc(String matchedPattern);
+    List<BlockedRequest> findByDetectionCategoryOrderByTimestampDesc(String detectionCategory);
     List<BlockedRequest> findBySourceIpOrderByTimestampDesc(String sourceIp);
     
     @Query("SELECT b FROM BlockedRequest b WHERE b.timestamp >= :since ORDER BY b.timestamp DESC")
     List<BlockedRequest> findRecentRequests(@Param("since") Instant since);
     
-    @Query("SELECT b.matchedPattern, COUNT(b) FROM BlockedRequest b GROUP BY b.matchedPattern ORDER BY COUNT(b) DESC")
+    @Query("SELECT b.detectionCategory, COUNT(b) FROM BlockedRequest b GROUP BY b.detectionCategory ORDER BY COUNT(b) DESC")
     List<Object[]> findAttackPatternStats();
     
     @Query("SELECT b.sourceIp, COUNT(b) FROM BlockedRequest b GROUP BY b.sourceIp ORDER BY COUNT(b) DESC")

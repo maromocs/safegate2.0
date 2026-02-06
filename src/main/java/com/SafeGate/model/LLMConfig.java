@@ -35,4 +35,20 @@ public class LLMConfig {
     // GPU acceleration flag (nullable in DB; coerced to false on save if null)
     @Column
     private Boolean gpuEnabled = Boolean.FALSE;
+
+    // Manual getters/setters to fix build issues when Lombok fails
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public LLMMode getLlmMode() { return llmMode; }
+    public void setLlmMode(LLMMode llmMode) { this.llmMode = llmMode; }
+    public String getLlmApiUrl() { return llmApiUrl; }
+    public void setLlmApiUrl(String llmApiUrl) { this.llmApiUrl = llmApiUrl; }
+    public String getLlmApiKey() { return llmApiKey; }
+    public void setLlmApiKey(String llmApiKey) { this.llmApiKey = llmApiKey; }
+    public String getProvider() { return provider; }
+    public void setProvider(String provider) { this.provider = provider; }
+    public String getModel() { return model; }
+    public void setModel(String model) { this.model = model; }
+    public Boolean getGpuEnabled() { return gpuEnabled; }
+    public void setGpuEnabled(Boolean gpuEnabled) { this.gpuEnabled = gpuEnabled; }
 }

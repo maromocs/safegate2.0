@@ -3,72 +3,281 @@
 <head>
     <meta charset="UTF-8">
     <title>Testing - SafeGate WAF</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
     <style>
-        body { max-width: 1200px; margin: auto; padding: 1rem; }
-        nav a { margin-right: 1rem; }
-        .status-box { background-color: #1a1a1a; padding: 1rem; border-radius: 5px; margin-top: 1rem; }
-        .status-box.active { border: 1px solid lightgreen; }
-        .status-box.inactive { border: 1px solid gray; }
-        #start-test-btn { background-color: green; }
-        #stop-test-btn { background-color: crimson; }
-        
-        /* Styles for the detailed breakdown */
-        #results-table td { vertical-align: top; padding: 10px; }
-        #results-table ul { margin: 5px 0; padding-left: 20px; }
-        #results-table strong { display: block; margin-top: 10px; }
-        .breakdown-section { background-color: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .passed-payloads { max-height: 200px; overflow-y: auto; }
-        
-        /* Error message styles */
-        #error-container { 
-            display: none; 
-            background-color: #3a1c1c; 
-            border: 1px solid #ff6b6b; 
-            color: #ff6b6b; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin: 15px 0; 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        #error-container h4 { 
-            margin-top: 0; 
-            margin-bottom: 10px; 
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
         }
-        #error-details { 
-            background-color: #2a1515; 
-            padding: 10px; 
-            border-radius: 3px; 
-            font-family: monospace; 
-            white-space: pre-wrap; 
-            margin-top: 10px; 
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        
-        /* Delete button styling */
-        .delete-btn {
-            background-color: #d32f2f;
+
+        nav {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        h3 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #a0a0a0;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="text"], input[type="file"], select, textarea {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e0e0e0;
+            width: 100%;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b0b0b0;
+            font-weight: 500;
+        }
+
+        .status-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-box.active {
+            border-color: rgba(76, 175, 80, 0.5);
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .status-box.inactive {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        #start-test-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        #stop-test-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 2rem;
+        }
+
+        thead {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #ffffff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+
+        tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        #results-table ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        #results-table strong {
+            display: block;
+            margin-top: 10px;
+            color: #667eea;
+        }
+
+        .breakdown-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 3px solid #667eea;
+        }
+
+        .passed-payloads {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        #error-container {
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+        }
+
+        #error-container h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        #error-details {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 0.9em;
+            transition: all 0.3s ease;
         }
-        
+
         .delete-btn:hover {
-            background-color: #b71c1c;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        #dataset-test-section {
+            margin-top: 2rem;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        #dataset-test-section > div {
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="/index.html">Home</a>
-        <a href="/logs.html">View Logs</a>
-        <a href="/rules.html">Manage Rules</a>
-        <a href="/testing.html" class="active">Performance Testing</a>
-        <a href="/llm.html">LLM Analyzer Configuration</a>
-    </nav>
-    <h1>Performance Testing</h1>
-    <p>Use this panel to run performance tests. When a test is active, blocked requests are not saved to the database. Instead, they are counted here in real-time.</p>
+    <div class="container">
+        <nav>
+            <a href="/index.html">🏠 Home</a>
+            <a href="/logs.html">📊 Test Results</a>
+            <a href="/testing.html" class="active">🧪 Dataset Testing</a>
+            <a href="/llm.html">⚙️ LLM Configuration</a>
+        </nav>
+        <h1>Dataset Testing (LLM Evaluation)</h1>
+        <p>Upload a dataset to evaluate the configured LLM model's detection performance. Signature rule testing has been removed; results are LLM-only.</p>
 
     <div id="dataset-test-section" style="margin-top: 1rem; padding: 1rem; border: 1px solid gray; border-radius: 5px;">
         <h3>Automated Dataset Test</h3>
@@ -432,7 +641,8 @@
                     const duration = ((new Date() - new Date(run.startTime)) / 1000).toFixed(1);
                     let countsHtml = '<ul>';
                     run.blockCounts.forEach(bc => {
-                        countsHtml += `<li>${bc.ruleName}: ${bc.count}</li>`;
+                        const name = bc.detectionCategory || bc.ruleName || 'UNKNOWN';
+                        countsHtml += `<li>${name}: ${bc.count}</li>`;
                     });
                     countsHtml += '</ul>';
 
@@ -442,7 +652,7 @@
                         <p><strong>Duration:</strong> ${duration} seconds</p>
                         <p><strong>Passed Requests:</strong> ${run.totalPassed}</p>
                         <p><strong>Blocked Requests:</strong> ${run.totalBlocked}</p>
-                        <div><strong>Blocked by Rule:</strong>${countsHtml}</div>`;
+                        <div><strong>Blocked by Category:</strong>${countsHtml}</div>`;
                     if (!statusInterval) {
                        statusInterval = setInterval(checkStatus, 2000);
                     }
@@ -507,9 +717,10 @@
                     
                     // Blocked by rule
                     if (run.blockCounts && run.blockCounts.length > 0) {
-                        detailedBreakdown += '<div class="breakdown-section"><strong>Blocked by Rule:</strong><ul>';
+                        detailedBreakdown += '<div class="breakdown-section"><strong>Blocked by Category:</strong><ul>';
                         run.blockCounts.forEach(bc => {
-                            detailedBreakdown += `<li>${bc.ruleName}: ${bc.count} requests</li>`;
+                            const name = bc.detectionCategory || bc.ruleName || 'UNKNOWN';
+                            detailedBreakdown += `<li>${name}: ${bc.count} requests</li>`;
                         });
                         detailedBreakdown += '</ul></div>';
                     }
@@ -706,5 +917,6 @@
         }
     });
 </script>
+    </div>
 </body>
 </html>

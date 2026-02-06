@@ -2,26 +2,172 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SafeGate WAF - Admin Console</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <title>SafeGate - LLM Test Harness</title>
     <style>
-        body { max-width: 1200px; margin: auto; padding: 1rem; }
-        nav ul { padding-left: 0; }
-        nav li { list-style: none; margin-bottom: 1rem; }
-        nav a { display: block; padding: 1rem; border: 1px solid gray; border-radius: 5px; text-decoration: none; }
-        nav a:hover { background-color: #333; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            line-height: 1.6;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-description {
+            color: #b0b0b0;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        .icon-logs { color: #667eea; }
+        .icon-testing { color: #f093fb; }
+        .icon-config { color: #4facfe; }
+
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            padding: 2rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>SafeGate WAF - Admin Console</h1>
-    <p>Welcome to the SafeGate Web Application Firewall administration console. Please choose an option below.</p>
-    <nav>
-        <ul>
-            <li><a href="/logs.html">View Blocked Requests Log</a></li>
-            <li><a href="/rules.html">Manage WAF Signature Rules</a></li>
-            <li><a href="/testing.html">Performance Testing Dashboard</a></li>
-            <li><a href="/llm.html">LLM Analyzer Configuration</a></li>
-        </ul>
-    </nav>
+    <div class="container">
+        <header>
+            <h1>SafeGate</h1>
+            <p class="subtitle">LLM Test Harness for Security Dataset Evaluation</p>
+            <p class="subtitle" style="margin-top: 0.5rem; font-size: 1rem;">Evaluate LLM model performance against security datasets</p>
+        </header>
+
+        <div class="card-grid">
+            <a href="/logs.html" class="card">
+                <div class="card-icon icon-logs">📊</div>
+                <div class="card-title">Test Results History</div>
+                <div class="card-description">View all dataset test runs, LLM analysis results, and passed payloads. Delete individual or all test results.</div>
+            </a>
+
+            <a href="/testing.html" class="card">
+                <div class="card-icon icon-testing">🧪</div>
+                <div class="card-title">Dataset Testing</div>
+                <div class="card-description">Upload security datasets (CSV, JSON, XML, TXT, TSV) to evaluate LLM detection performance with various sampling options.</div>
+            </a>
+
+            <a href="/llm.html" class="card">
+                <div class="card-icon icon-config">⚙️</div>
+                <div class="card-title">LLM Configuration</div>
+                <div class="card-description">Configure LLM provider, model selection, GPU acceleration, and manage model downloads for security analysis.</div>
+            </a>
+        </div>
+
+        <footer>
+            SafeGate LLM Test Harness &copy; 2025 | Powered by Ollama
+        </footer>
+    </div>
 </body>
 </html>

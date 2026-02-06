@@ -1,4 +1,4 @@
-# SafeGate - Web Application Security Gateway
+# SafeGate - LLM Test Harness for Security Dataset Evaluation
 
 SafeGate is a comprehensive web application security monitoring and reporting system designed to detect, track, and respond to various web security vulnerabilities and attacks.
 
@@ -8,14 +8,11 @@ SafeGate serves as a security gateway that monitors web traffic, detects potenti
 
 ## Key Features
 
-- **Web Application Firewall (WAF)**: Actively detects and blocks malicious requests using signature-based rules
-- **Security Monitoring**: Monitors and logs all incoming HTTP requests
-- **Attack Detection**: Identifies common attack patterns like SQL Injection, XSS, Command Injection, and Directory Traversal
-- **Security Logging**: Records detailed information about blocked attacks for analysis
-- **Performance Testing**: Provides tools to test and evaluate WAF performance with dataset testing
-- **Vulnerability Reporting**: Allows users to report various types of web security vulnerabilities
-- **Incident Management**: Tracks security incidents through their lifecycle from reporting to resolution
-- **User Management**: Supports different user roles with varying levels of access and responsibilities
+- LLM-based detection: Evaluate large language models for security threat detection (no signature rules)
+- Dataset testing: Upload and test CSV, JSON, XML, TXT, TSV datasets with sampling and seeds
+- Batch analysis: High-throughput LLM batch evaluation with per-category stats and examples
+- GPU acceleration: Optional CUDA acceleration for Ollama models
+- Logging & results: View detection logs, test runs, and category breakdowns
 
 ## Architecture
 
@@ -145,10 +142,10 @@ For information on how to use the dataset testing feature, including supported f
 ## Web Interface
 
 SafeGate provides a simple web interface with the following pages:
-- Admin Console (index.html) - Main dashboard with links to other pages
-- Blocked Requests Log (logs.html) - View logs of blocked requests
-- WAF Signature Rules (rules.html) - Manage WAF signature rules
-- Performance Testing Dashboard (testing.html) - Run and view WAF performance tests
+- Home (index.html) - Main dashboard
+- LLM Detection Logs (logs.html) - View detections from LLM-only filtering
+- Dataset Testing (testing.html) - Run and view LLM evaluation on datasets
+- LLM Configuration (llm.html) - Configure provider, model, and GPU settings
 
 ## Contributing
 

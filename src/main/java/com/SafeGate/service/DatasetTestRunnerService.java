@@ -2,8 +2,8 @@ package com.SafeGate.service;
 
 import com.SafeGate.entity.PassedPayload;
 import com.SafeGate.entity.TestRun;
+import com.SafeGate.entity.TestRunBlockCount;
 import com.SafeGate.model.HttpRequestData;
-import com.SafeGate.model.SignatureRule;
 import com.SafeGate.repository.TestRunRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +38,6 @@ public class DatasetTestRunnerService {
     private static final Logger logger = LoggerFactory.getLogger(DatasetTestRunnerService.class);
 
     @Autowired
-    private SignatureRulesEngine rulesEngine;
-
-    @Autowired
     private TestRunRepository testRunRepository;
 
     @Autowired
@@ -48,24 +45,41 @@ public class DatasetTestRunnerService {
     
     @Autowired
     private DatasetParsingService datasetParsingService;
-    
-    @Autowired
-    private RestTemplate restTemplate;
 
     @Autowired
     private LLMService llmService;
+
+    // Legacy RestTemplate kept for deprecated methods to compile
+    private final RestTemplate restTemplate = new RestTemplate();
 
     // Transient storage for last dataset LLM aggregation
     private int lastLlmTotal = 0;
     private int lastLlmMalicious = 0;
     private int lastLlmSafe = 0;
-    private final List<Map<String, String>> lastLlmMaliciousList = new ArrayList<>();
+    private final List<Map<String, Object>> lastLlmMaliciousList = new ArrayList<>();
+    private final List<Map<String, Object>> lastLlmSafeList = new ArrayList<>();
     private final List<String> lastPassedPayloadsForLlm = new ArrayList<>();
 
     public synchronized List<String> consumePassedPayloadsForLlm() {
         List<String> copy = new ArrayList<>(lastPassedPayloadsForLlm);
         lastPassedPayloadsForLlm.clear();
         return copy;
+    }
+
+    public synchronized Map<String, Object> getLastLlmStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", lastLlmTotal);
+        stats.put("malicious", lastLlmMalicious);
+        stats.put("safe", lastLlmSafe);
+        return stats;
+    }
+
+    public synchronized List<Map<String, Object>> getLastLlmMaliciousList() {
+        return new ArrayList<>(lastLlmMaliciousList);
+    }
+
+    public synchronized List<Map<String, Object>> getLastLlmSafeList() {
+        return new ArrayList<>(lastLlmSafeList);
     }
 
     /**
@@ -148,17 +162,88 @@ public class DatasetTestRunnerService {
             testRun.setTotalMaliciousRequests(sampledRequests.size());
             logger.info("[DEBUG_LOG] Set totalMaliciousRequests to: {}", sampledRequests.size());
             
-            // Process each request by sending HTTP requests
-            logger.info("Processing requests by sending them as simulated HTTP requests");
-            logger.info("[DEBUG_LOG] About to process {} requests", sampledRequests.size());
-            processRequests(sampledRequests, testRun);
-            
-            // Stop the test and save the results
-            logger.info("Test completed. Blocked: {}, Passed: {}", 
-                    testRun.getTotalMaliciousBlocked(), 
-                    testRun.getTotalMaliciousRequests() - testRun.getTotalMaliciousBlocked());
-            
-            return testModeService.stopTest();
+            // Build payload list
+            List<String> payloads = sampledRequests.stream()
+                    .map(HttpRequestData::getPayload)
+                    .collect(Collectors.toList());
+
+            // Perform LLM-only analysis
+            lastLlmTotal = payloads.size();
+            lastLlmMalicious = 0;
+            lastLlmSafe = 0;
+            lastLlmMaliciousList.clear();
+            lastLlmSafeList.clear();
+            synchronized (lastPassedPayloadsForLlm) {
+                lastPassedPayloadsForLlm.clear();
+            }
+
+            Map batchResponse = llmService.analyzeBatch(payloads);
+            Object resultsObj = batchResponse.get("results");
+            Map stats = (Map) batchResponse.getOrDefault("stats", Map.of());
+            Object byCategoryObj = stats.getOrDefault("byCategory", Map.of());
+            Map byCategory = byCategoryObj instanceof Map ? (Map) byCategoryObj : Map.of();
+
+            // Prepare category counts and totals via test mode counters
+            if (resultsObj instanceof List) {
+                List results = (List) resultsObj;
+                for (Object item : results) {
+                    if (item instanceof Map) {
+                        Map itemMap = (Map) item;
+                        boolean isMalicious = Boolean.TRUE.equals(itemMap.get("is_malicious"));
+                        String category = String.valueOf(itemMap.getOrDefault("category", "OTHER"));
+                        String reason = String.valueOf(itemMap.getOrDefault("reason", ""));
+                        String payload = String.valueOf(itemMap.getOrDefault("payload", ""));
+
+                        if (isMalicious) {
+                            lastLlmMalicious++;
+                            Map<String, Object> row = new HashMap<>();
+                            row.put("payload", payload);
+                            row.put("category", category);
+                            row.put("reason", reason);
+                            row.put("is_malicious", true);
+                            lastLlmMaliciousList.add(row);
+                            testModeService.recordBlockedRequest("LLM:" + category);
+                        } else {
+                            lastLlmSafe++;
+                            Map<String, Object> row = new HashMap<>();
+                            row.put("payload", payload);
+                            row.put("category", category);
+                            row.put("reason", reason);
+                            row.put("is_malicious", false);
+                            lastLlmSafeList.add(row);
+                            testModeService.recordPassedRequest();
+                            // Also store passed payload entity
+                            PassedPayload passedPayload = new PassedPayload(payload, testRun);
+                            testRun.getPassedPayloads().add(passedPayload);
+                            synchronized (lastPassedPayloadsForLlm) {
+                                lastPassedPayloadsForLlm.add(payload);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // For blockCounts, prefer stats.byCategory if provided
+            if (!byCategory.isEmpty()) {
+                byCategory.forEach((k, v) -> {
+                    long cnt = 0;
+                    if (v instanceof Number) {
+                        cnt = ((Number) v).longValue();
+                    }
+                    if (cnt > 0) {
+                        testRun.getBlockCounts().add(new TestRunBlockCount("LLM:" + String.valueOf(k), cnt, testRun));
+                    }
+                });
+            }
+
+            // Set totals for malicious tracking
+            testRun.setTotalMaliciousRequests(payloads.size());
+            testRun.setTotalMaliciousBlocked(lastLlmMalicious);
+
+            // Stop the test and save the results (will compute totalPassed/totalBlocked from counters)
+            TestRun saved = testModeService.stopTest();
+            logger.info("Test completed. LLM malicious: {}, safe: {}", lastLlmMalicious, lastLlmSafe);
+            return saved;
         } catch (Exception e) {
             // If an error occurs, stop the test and rethrow the exception
             if (testModeService.isTestModeEnabled()) {
@@ -336,6 +421,7 @@ public class DatasetTestRunnerService {
      * @param requests The list of HTTP requests to process
      * @param testRun The test run to update
      */
+    @Deprecated
     private void processRequests(List<HttpRequestData> requests, TestRun testRun) {
         String baseUrl = "http://localhost:8080/api/test/test-harness"; // Correct endpoint that matches our controller
         HttpHeaders headers = new HttpHeaders();

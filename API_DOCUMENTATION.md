@@ -1,4 +1,4 @@
-# SafeGate WAF API Documentation
+# SafeGate LLM Test Harness API Documentation
 
 This document provides comprehensive documentation for the SafeGate Web Application Firewall (WAF) API endpoints.
 
@@ -46,43 +46,7 @@ This document provides comprehensive documentation for the SafeGate Web Applicat
 
 ### Rules Endpoints
 
-#### Get All Rules
-- **Endpoint**: `/api/rules`
-- **Method**: GET
-- **Description**: Retrieves all signature rules
-- **Response**: List of signature rules
-
-#### Get Rule by ID
-- **Endpoint**: `/api/rules/{id}`
-- **Method**: GET
-- **Description**: Gets a rule by ID
-- **Response**: Signature rule details
-
-#### Add New Rule
-- **Endpoint**: `/api/rules`
-- **Method**: POST
-- **Description**: Adds a new signature rule
-- **Request Body**: Rule details
-- **Response**: Created rule
-
-#### Update Rule
-- **Endpoint**: `/api/rules/{id}`
-- **Method**: PUT
-- **Description**: Updates an existing rule
-- **Request Body**: Updated rule details
-- **Response**: Updated rule
-
-#### Delete Rule
-- **Endpoint**: `/api/rules/{id}`
-- **Method**: DELETE
-- **Description**: Deletes a rule
-- **Response**: Confirmation message
-
-#### Toggle Rule Status
-- **Endpoint**: `/api/rules/{id}/toggle`
-- **Method**: POST
-- **Description**: Toggles a rule's enabled status
-- **Response**: Updated rule status
+All signature rule endpoints have been removed in the LLM-only harness.
 
 ## Performance Testing API
 
@@ -114,7 +78,7 @@ This document provides comprehensive documentation for the SafeGate Web Applicat
 
 ## Dataset Testing API
 
-The SafeGate WAF provides an API for testing datasets of attack payloads against the WAF.
+The SafeGate LLM Test Harness provides an API for testing datasets of attack payloads using the configured LLM model (no signature rules).
 
 ### Start Dataset Test
 
@@ -152,11 +116,11 @@ The API returns a JSON object with the following fields:
     "totalMaliciousBlocked": 70,
     "blockCounts": [
       {
-        "ruleName": "SQL Injection Rule",
+        "detectionCategory": "LLM:SQLI",
         "count": 65
       },
       {
-        "ruleName": "Generic Attack Signatures",
+        "detectionCategory": "LLM:OTHER",
         "count": 5
       }
     ],

@@ -1,189 +1,195 @@
 # SafeGate - LLM Test Harness for Security Dataset Evaluation
 
-SafeGate is a comprehensive web application security monitoring and reporting system designed to detect, track, and respond to various web security vulnerabilities and attacks.
+SafeGate is a specialized test harness designed to evaluate Large Language Model (LLM) performance in detecting security threats and attack payloads. It allows security researchers and ML engineers to test different LLM models against various security datasets and compare their effectiveness.
 
-## Overview
+## 🎯 What is SafeGate?
 
-SafeGate serves as a security gateway that monitors web traffic, detects potential security threats, and provides a platform for reporting and managing security incidents. The system allows different types of users to report security issues, which can then be tracked and resolved by administrators and security professionals.
+SafeGate transforms security datasets into actionable insights about LLM detection capabilities. Upload attack payloads in various formats, run them through your chosen LLM, and get detailed reports on what was detected and what was missed.
 
-## Key Features
+**Key Focus**: This is NOT a production WAF. It's a **testing and evaluation platform** for LLM-based security detection.
 
-- LLM-based detection: Evaluate large language models for security threat detection (no signature rules)
-- Dataset testing: Upload and test CSV, JSON, XML, TXT, TSV datasets with sampling and seeds
-- Batch analysis: High-throughput LLM batch evaluation with per-category stats and examples
-- GPU acceleration: Optional CUDA acceleration for Ollama models
-- Logging & results: View detection logs, test runs, and category breakdowns
+## ✨ Key Features
 
-## Architecture
+### 🤖 LLM Integration
+- **Multiple Model Support**: Test with tinyllama, phi, phi3:mini, mistral, llama2, llama3.2:3b-instruct, or any Ollama model
+- **Batch Processing**: Efficient batch analysis of payloads with detailed per-category statistics
+- **GPU Acceleration**: Optional CUDA support for faster inference (NVIDIA GPUs)
+- **Provider-Agnostic**: Built on Ollama but extensible to other providers
 
-SafeGate is built as a multi-component system:
+### 📊 Dataset Testing
+- **Multi-Format Support**: CSV, JSON, XML, TXT, TSV with automatic format detection
+- **Flexible Sampling**: Test all payloads or random samples (100, 1000, 10000, etc.)
+- **Deterministic Testing**: Optional seed parameter for reproducible results
+- **CSIC 2010 Ready**: Pre-configured for popular security dataset formats
 
-1. **Spring Boot Backend API**: Core application that handles business logic, data persistence, and API endpoints
-2. **Web Application Firewall (WAF)**: Filters incoming requests and blocks malicious traffic based on signature rules
-3. **Signature Rules Engine**: Manages and applies security rules to detect common attack patterns
-4. **MySQL Database**: Stores user data, security reports, gate information, and blocked request logs
-5. **Performance Testing Module**: Evaluates WAF effectiveness by tracking passed and blocked requests
-6. **Dataset Testing**: Tests WAF against various attack payload datasets in multiple formats
+### 📈 Results & Analysis
+- **Comprehensive Reports**: View detection rates, category breakdowns, and passed payloads
+- **Historical Tracking**: Keep all test runs for comparison and trend analysis
+- **Detailed Logs**: Examine individual LLM decisions with reasoning
+- **Export Capabilities**: Download safe and malicious payloads for further analysis
 
-## Technology Stack
+### 🎨 Modern Interface
+- Beautiful dark-themed web UI with real-time updates
+- Interactive result exploration with expandable details
+- Model management (pull, configure, monitor)
+- GPU status monitoring and configuration
 
-- **Backend**: Java 21, Spring Boot
-- **Database**: MySQL 8.0
-- **Containerization**: Docker, Docker Compose
-- **Build Tool**: Gradle
+## 🏗️ Architecture
 
-## Security Features
+```
+┌─────────────────┐
+│   Web Browser   │ (Modern Dark UI)
+└────────┬────────┘
+         │ HTTP
+         ▼
+┌─────────────────┐
+│  Spring Boot    │ (Java 21 Backend)
+│   API Server    │
+└────────┬────────┘
+         │
+    ┌────┴────┬──────────┬─────────┐
+    ▼         ▼          ▼         ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│ MySQL  │ │Analyzer│ │ Ollama │ │ Docker │
+│   DB   │ │Service │ │  LLM   │ │Volumes │
+└────────┘ └────────┘ └────────┘ └────────┘
+```
 
-### Web Application Firewall (WAF)
+### Components
 
-SafeGate includes a built-in Web Application Firewall that actively monitors incoming requests and blocks malicious traffic. The WAF:
+1. **Spring Boot API** - Core application handling requests, test orchestration, and data persistence
+2. **Python Analyzer** - Microservice interfacing with Ollama for LLM inference
+3. **Ollama Service** - LLM runtime (CPU or GPU mode)
+4. **MySQL Database** - Stores test runs, results, and configuration
+5. **Web Interface** - Modern responsive UI for interaction
 
-- Intercepts all HTTP requests
-- Normalizes request data (method, path, query parameters)
-- Applies signature-based rules to detect attack patterns
-- Blocks requests that match known attack signatures
-- Logs detailed information about blocked requests
-
-### Signature-Based Detection
-
-The system uses a signature rules engine with regex patterns to detect common attack types:
-
-- SQL Injection (SQLI-001) - Detects common SQL injection patterns
-- Cross-Site Scripting (XSS-001) - Detects script tags and JavaScript code
-- Command Injection (CMDI-001) - Detects attempts to execute system commands
-- Directory Traversal (TRAV-001) - Detects path traversal attempts
-
-### WAF Performance Testing
-
-SafeGate includes a testing module that allows users to evaluate the performance of the WAF:
-
-- Start and stop test runs to measure WAF effectiveness
-- Track passed and blocked requests during test periods
-- Record which rules blocked requests and how many times
-- View detailed test results including start/end times and request counts
-- Compare results across multiple test runs
-
-### Dataset Testing
-
-The system supports testing WAF rules against datasets of attack payloads:
-
-- Upload datasets in various formats (CSV, JSON, XML, TXT, TSV)
-- Automatic format detection
-- Configurable sampling options (All, Random 100, Random 1,000, etc.)
-- Detailed reporting on blocked and passed payloads
-- Support for the CSIC 2010 dataset and other common WAF testing datasets
-
-## User Roles
-
-- **CITIZEN**: Regular users who can report security issues
-- **ADMIN**: Administrators with full system access
-- **MODERATOR**: Users who can moderate and manage reports
-- **EMERGENCY_RESPONDER**: Users who respond to critical security incidents
-
-## Report Management
-
-Security reports in SafeGate have:
-
-- **Types**: Various vulnerability types (SQL Injection, XSS, etc.)
-- **Severity Levels**: INFO, LOW, MEDIUM, HIGH, CRITICAL
-- **Statuses**: PENDING, INVESTIGATING, RESOLVED, CLOSED, REJECTED
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Java 21 (for local development)
-- Gradle (for local development)
+- **Docker & Docker Compose** (required)
+- **20+ GB disk space** (for LLM models)
+- **Optional**: NVIDIA GPU with Container Toolkit for GPU acceleration
 
-### Running with Docker
+### Installation
 
-1. Clone the repository:
-   ```
+1. **Clone the repository**
+   ```bash
    git clone https://github.com/yourusername/SafeGate.git
    cd SafeGate
    ```
 
-2. Start the application using Docker Compose:
-   ```
-   docker-compose up -d
-   ```
-
-3. Access the application at http://localhost:8080
-
-### Local Development
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/SafeGate.git
-   cd SafeGate
+2. **Start SafeGate (CPU mode)**
+   ```bash
+   docker compose up -d
    ```
 
-2. Build the application:
+3. **Access the interface**
+   - Open http://localhost:8080
+   - Wait for tinyllama model to download (~600 MB, first time only)
+
+4. **Optional: GPU acceleration**
+   ```bash
+   docker compose --profile gpu up -d
    ```
-   ./gradlew build
-   ```
 
-3. Run the application:
-   ```
-   ./gradlew bootRun
-   ```
+### First Test Run
 
-4. Access the application at http://localhost:8080
+1. Go to http://localhost:8080/llm.html
+2. Configure LLM settings (tinyllama is pre-configured)
+3. Go to http://localhost:8080/testing.html
+4. Upload a dataset (CSV, JSON, XML, TXT, TSV)
+5. Click "Start Dataset Test"
+6. View results in http://localhost:8080/logs.html
 
-## API Documentation
+## 📖 Documentation
 
-For detailed API documentation, please refer to the [API Documentation](API_DOCUMENTATION.md) file.
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Detailed installation, configuration, and troubleshooting
+- **[DATASET_GUIDE.md](DATASET_GUIDE.md)** - Dataset formats, preparation, and examples
+- **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - REST API reference for automation
 
-## Dataset Testing Guide
+## 🎯 Use Cases
 
-For information on how to use the dataset testing feature, including supported formats and usage examples, please refer to the [Dataset Testing Guide](DATASET_GUIDE.md) file.
+### Security Researchers
+- Evaluate new LLM models for security threat detection
+- Compare different models on the same dataset
+- Identify blind spots in LLM-based detection
 
-## Web Interface
+### ML Engineers
+- Test prompt engineering improvements
+- Benchmark model performance on security tasks
+- Fine-tune models using passed payloads as training data
 
-SafeGate provides a simple web interface with the following pages:
-- Home (index.html) - Main dashboard
-- LLM Detection Logs (logs.html) - View detections from LLM-only filtering
-- Dataset Testing (testing.html) - Run and view LLM evaluation on datasets
-- LLM Configuration (llm.html) - Configure provider, model, and GPU settings
+### Red Teams
+- Discover bypass techniques for LLM-based WAFs
+- Build evasion payload datasets
+- Test payload obfuscation effectiveness
 
-## Contributing
+### Academic Research
+- Reproducible experiments with deterministic sampling
+- Comparative studies across models
+- Dataset curation and validation
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## 🔧 Technology Stack
 
-## License
+| Component | Technology |
+|-----------|------------|
+| Backend | Java 21, Spring Boot 3.5 |
+| Frontend | HTML5, CSS3, JavaScript (Vanilla) |
+| Database | MySQL 8.0 |
+| LLM Runtime | Ollama |
+| Containerization | Docker, Docker Compose |
+| Build Tool | Gradle 8.14 |
 
-This project is licensed under the [MIT License](LICENSE).
+## 📊 Supported Dataset Formats
 
-## Last Updated
+- **CSV** - With "payload" column
+- **JSON** - Array of strings or objects with payload field
+- **XML** - Elements or attributes containing payloads
+- **TXT** - One payload per line
+- **TSV** - Tab-separated with "payload" column
 
-2025-07-25
+See [DATASET_GUIDE.md](DATASET_GUIDE.md) for detailed format specifications.
 
-## GPU Acceleration with Ollama (RTX 3060 Ti or any CUDA GPU)
+## 🎮 Model Management
 
-SafeGate can leverage GPU acceleration for Ollama to speed up LLM inference.
+SafeGate automatically downloads **tinyllama** (~600 MB) on first startup. Additional models can be pulled through the UI:
 
-Prerequisites (host):
-- NVIDIA GPU (e.g., RTX 3060 Ti) with recent drivers installed
-- NVIDIA Container Toolkit installed and configured for Docker
-  - Ubuntu quick start:
-    - sudo apt-get install -y nvidia-container-toolkit
-    - sudo nvidia-ctk runtime configure
-    - sudo systemctl restart docker
+- **tinyllama** - Fastest, smallest, good for testing
+- **phi3:mini** - Balanced speed/accuracy
+- **mistral** - High accuracy, larger model
+- **llama3.2:3b-instruct** - Best accuracy, instruction-tuned
 
-How to enable GPU mode:
-1) Start the stack with the GPU profile for the Ollama service:
-   - docker compose --profile gpu -f docker-compose.yml -f docker-compose.gpu.yml up -d
-   - CPU-only remains the default if you do not specify the gpu profile.
-2) In the UI (LLM Analyzer Configuration page):
-   - Check "Use GPU acceleration (CUDA)" and Save.
-   - This sets gpuEnabled in the backend config and the analyzer will hint GPU usage (options.num_gpu > 0).
+## 🐛 Troubleshooting
 
-Notes:
-- If gpuEnabled is OFF or if you run without the gpu profile, analysis falls back to CPU (options.num_gpu = 0).
-- Analyzer will continue to function even if GPU is not available (fail-open) — it will treat requests as SAFE on infra errors.
-- The status banner shows Mode, Provider/Model, Analyzer reachability, whether LLM will analyze in current context, and GPU On/Off.
+**Models downloading on every startup?**
+- This is now fixed! Models persist in Docker volumes
+- Only tinyllama downloads automatically (once)
 
-Troubleshooting:
-- If you see errors accessing GPU, verify `docker compose ls` shows the stack started with the `gpu` profile and that `nvidia-smi` works on the host.
-- Some environments require logging out/in after installing NVIDIA Container Toolkit.
+**Out of disk space?**
+- Each model is 600 MB - 4 GB
+- Delete unused models via UI or `docker volume prune`
+
+**GPU not detected?**
+- Ensure NVIDIA Container Toolkit is installed
+- Start with `docker compose --profile gpu up -d`
+- Verify with `docker exec ollama nvidia-smi`
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit Pull Requests.
+
+
+
+## ⭐ Star History
+
+If you find SafeGate useful, please consider giving it a star!
+
+---
+
+**Last Updated**: February 2026
+**Version**: 2.0 - LLM Test Harness Edition

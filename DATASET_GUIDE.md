@@ -1,213 +1,559 @@
-# Dataset Testing Guide for SafeGate LLM Test Harness
+# Dataset Testing Guide
 
-This guide explains how to evaluate security datasets using SafeGate’s LLM-only test harness. The feature tests collections of attack payloads using the configured LLM model (no signature rules).
+Complete guide for preparing, uploading, and testing security datasets with SafeGate.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Supported Formats](#supported-formats)
+- [Dataset Preparation](#dataset-preparation)
+- [Testing Datasets](#testing-datasets)
+- [Interpreting Results](#interpreting-results)
+- [Example Datasets](#example-datasets)
+- [Best Practices](#best-practices)
+
+---
 
 ## Overview
 
-The dataset testing feature:
-- Supports multiple file formats (CSV, JSON, XML, TXT, TSV)
-- Automatically detects file formats
-- Provides detailed reporting on test results
-- Works efficiently by testing payloads directly against rules in memory
+SafeGate allows you to test LLM detection capabilities against security datasets containing attack payloads. The system:
 
-## How the LLM Testing Works
+1. **Extracts** payloads from your uploaded file
+2. **Analyzes** each payload with the configured LLM model
+3. **Records** which payloads were detected as malicious vs. safe
+4. **Reports** detection rates, category breakdowns, and missed payloads
 
-The dataset testing feature **does not** use HTTP requests to test the WAF. Instead:
+**Important**: SafeGate does NOT send HTTP requests. It directly analyzes the payload strings with the LLM.
 
-1. It extracts payloads from your uploaded file
-2. It sends all payloads to the analyzer for batch LLM evaluation
-3. It records which payloads the LLM flagged as malicious and which it considered safe
+---
 
-This is more efficient than sending actual HTTP requests, especially for large datasets.
+## Supported Formats
 
-## Using the Dataset Testing Feature
+### CSV (Comma-Separated Values)
 
-### Web Interface
+**Best for**: Structured datasets with metadata
 
-1. **Access the Testing Dashboard**:
-   - Navigate to the "Dataset Testing" page in the SafeGate interface
+**Requirements**:
+- Must have a header row
+- Must contain a column named `payload` (case-insensitive)
+- Values can be quoted or unquoted
 
-2. **Upload a Dataset**:
-   - In the "Automated Dataset Test" section, click "Choose File" and select your dataset file
-   - The system will automatically detect the file format
-
-3. **Configure the Test**:
-   - Format: Select "Auto-detect" (recommended) or specify a format
-   - Attack Type: Enter a tag to identify the attack type (e.g., "SQLi", "XSS")
-   - Sampling: Choose "All" or a sampling option (e.g., "Random 100", "Random 1,000")
-
-4. **Start the Test**:
-   - Click "Start New Test"
-   - The system will process the dataset and analyze payloads with the configured LLM model
-
-5. **View Results**:
-   - After the test completes, you'll see detailed results in the "Completed Test Runs" section
-   - The results will show which payloads were flagged as malicious and which were safe
-   - You can use this information to evaluate/tune your LLM model, prompts, and configuration
-
-### Command Line Testing
-
-You can also test datasets using curl:
-
-```bash
-curl -X POST http://localhost:8080/api/tests/start-dataset-test \
-  -F "file=@/path/to/your/dataset.csv" \
-  -F "attackTypeTag=SQLi" \
-  -F "samplingSize=Random 100"
-```
-
-For more details on the API, see the [API Documentation](API_DOCUMENTATION.md).
-
-## Supported File Formats
-
-### CSV Format
-
-The system expects CSV files to have:
-
-1. **Header Row**: The first row must contain column names
-   - Column names can be with or without quotes (e.g., `"payload"` or `payload`)
-   - The system looks for a column named "payload" (case-insensitive)
-
-2. **Data Rows**: Each subsequent row contains data, with values separated by commas
-   - Values can be with or without quotes
-   - Quotes are required if the value contains commas (e.g., `"value, with, commas"`)
-
-3. **Payload Column**: The system looks for a column named "payload" to extract attack payloads
-   - If no "payload" column is found, the system will use the last column
-   - The payload column should contain the attack payloads you want to test
-
-Example CSV format:
+**Example**:
 ```csv
-"index","method","url","protocol","userAgent","pragma","cacheControl","accept","acceptEncoding","acceptCharset","acceptLanguage","host","connection","contentLength","contentType","cookie","payload","label"
-"0","GET","http://localhost:8080/tienda1/publico/anadir.jsp","HTTP/1.1","Mozilla/5.0","no-cache","no-cache","text/xml","x-gzip","utf-8","en","localhost:8080","close","null","null","JSESSIONID=123","id=2","anom"
-"0","GET","http://localhost:8080/tienda1/publico/anadir.jsp","HTTP/1.1","Mozilla/5.0","no-cache","no-cache","text/xml","x-gzip","utf-8","en","localhost:8080","close","null","null","JSESSIONID=123","nombre=Jam%F3n+Ib%E9rico","anom"
-"0","GET","http://localhost:8080/tienda1/publico/anadir.jsp","HTTP/1.1","Mozilla/5.0","no-cache","no-cache","text/xml","x-gzip","utf-8","en","localhost:8080","close","null","null","JSESSIONID=123","precio=85","anom"
-"0","GET","http://localhost:8080/tienda1/publico/anadir.jsp","HTTP/1.1","Mozilla/5.0","no-cache","no-cache","text/xml","x-gzip","utf-8","en","localhost:8080","close","null","null","JSESSIONID=123","cantidad=%27%3B+DROP+TABLE+usuarios%3B+SELECT+*+FROM+datos+WHERE+nombre+LIKE+%27%25","anom"
+id,payload,attack_type,label
+1,"' OR 1=1 --",SQLi,malicious
+2,"<script>alert(1)</script>",XSS,malicious
+3,"../../etc/passwd",PathTraversal,malicious
+4,"normal query",None,benign
 ```
 
-### JSON Format
+**Alternative**: If no `payload` column exists, the **last column** will be used.
 
-The system can handle JSON files in the following formats:
+### JSON
 
-1. **Array of Strings**:
-   ```json
-   ["payload1", "payload2", "payload3"]
-   ```
+**Best for**: Programmatically generated datasets
 
-2. **Array of Objects with a "payload" Field**:
-   ```json
-   [
-     {"payload": "payload1"},
-     {"payload": "payload2"},
-     {"payload": "payload3"}
-   ]
-   ```
+**Format 1 - Array of Strings**:
+```json
+[
+  "' OR 1=1 --",
+  "<script>alert(1)</script>",
+  "../../etc/passwd"
+]
+```
 
-### XML Format
+**Format 2 - Array of Objects**:
+```json
+[
+  {"payload": "' OR 1=1 --", "type": "SQLi"},
+  {"payload": "<script>alert(1)</script>", "type": "XSS"},
+  {"payload": "../../etc/passwd", "type": "PathTraversal"}
+]
+```
 
-The system looks for payloads in XML files in the following ways:
+### XML
 
-1. **Elements with a "payload" Tag**:
-   ```xml
-   <payloads>
-     <payload>attack payload 1</payload>
-     <payload>attack payload 2</payload>
-   </payloads>
-   ```
+**Best for**: Legacy datasets or SOAP-based attack collections
 
-2. **Attributes Named "payload"**:
-   ```xml
-   <attacks>
-     <attack payload="attack payload 1" />
-     <attack payload="attack payload 2" />
-   </attacks>
-   ```
+**Format 1 - Element Content**:
+```xml
+<payloads>
+  <payload>' OR 1=1 --</payload>
+  <payload><script>alert(1)</script></payload>
+  <payload>../../etc/passwd</payload>
+</payloads>
+```
 
-### TXT Format
+**Format 2 - Attributes**:
+```xml
+<attacks>
+  <attack payload="' OR 1=1 --" type="SQLi"/>
+  <attack payload="&lt;script&gt;alert(1)&lt;/script&gt;" type="XSS"/>
+  <attack payload="../../etc/passwd" type="PathTraversal"/>
+</attacks>
+```
 
-For TXT files, the system expects:
-- One payload per line
-- No headers or special formatting
+### TXT (Plain Text)
 
-Example:
+**Best for**: Simple payload lists
+
+**Format**: One payload per line
 ```
 ' OR 1=1 --
 <script>alert(1)</script>
-../../../etc/passwd
+../../etc/passwd
+../../../windows/system32
 ```
 
-### TSV Format
+**Note**: Empty lines are skipped
 
-For TSV (Tab-Separated Values) files, the system follows similar rules to CSV:
-- Header row with column names separated by tabs
-- Data rows with values separated by tabs
-- Looks for a "payload" column
+### TSV (Tab-Separated Values)
 
-## Using the CSIC 2010 Dataset
+**Best for**: Excel exports or tab-delimited data
 
-The CSIC 2010 dataset is a common dataset for testing WAFs, and the dataset testing feature is designed to work well with it.
+**Requirements**: Same as CSV but uses tabs instead of commas
+```tsv
+id	payload	attack_type
+1	' OR 1=1 --	SQLi
+2	<script>alert(1)</script>	XSS
+```
 
-### Steps to Test with CSIC 2010 Dataset
+---
 
-1. **Upload the Dataset**:
-   - Go to the "Dataset Testing" page in the SafeGate interface
-   - In the "Automated Dataset Test" section, click "Choose File" and select your CSIC 2010 CSV file
-   - The system will automatically detect the file as CSV format
+## Dataset Preparation
 
-2. **Configure the Test**:
-   - Format: Select "Auto-detect" (recommended)
-   - Attack Type: Enter "HTTP" or another tag to identify these attacks
-   - Sampling: Choose "Random 1,000" for a quick test or "All" for comprehensive testing
+### Step 1: Choose Your Format
 
-3. **Start the Test**:
-   - Click "Start New Test"
-   - The system will process the dataset, extract payloads from the "payload" column, and analyze them with the configured LLM model
+- **CSV**: Best for most use cases, widely supported
+- **JSON**: Best for programmatic generation
+- **TXT**: Simplest, one payload per line
+- **XML**: For compatibility with existing XML datasets
+- **TSV**: For Excel/spreadsheet exports
 
-4. **View Results**:
-   - After the test completes, you'll see detailed results in the "Completed Test Runs" section
-   - The results will show which payloads were flagged as malicious and which were safe
-   - You can use this information to evaluate/tune your LLM model, prompts, and configuration
+### Step 2: Structure Your Data
 
-### Command Line Testing with CSIC Dataset
+#### CSV Example
 
-You can also test the CSIC dataset using curl:
+```csv
+"index","payload","attack_type","label"
+"1","' OR 1=1 --","SQLi","malicious"
+"2","admin' --","SQLi","malicious"
+"3","<script>alert(XSS)</script>","XSS","malicious"
+"4","normal_value","None","benign"
+```
+
+**Column names can be anything**, but `payload` column is required!
+
+#### JSON Example
+
+```json
+[
+  {
+    "id": 1,
+    "payload": "' OR 1=1 --",
+    "type": "SQLi",
+    "source": "manual"
+  },
+  {
+    "id": 2,
+    "payload": "<script>alert(XSS)</script>",
+    "type": "XSS",
+    "source": "fuzzdb"
+  }
+]
+```
+
+### Step 3: Validate Your Dataset
+
+Before uploading, verify:
+
+✅ **CSV/TSV**: Has header row with `payload` column
+✅ **JSON**: Valid JSON syntax (use [JSONLint](https://jsonlint.com/))
+✅ **XML**: Well-formed XML (matching open/close tags)
+✅ **TXT**: UTF-8 encoding, one payload per line
+✅ **All formats**: File size < 100 MB
+
+### Step 4: Test a Sample
+
+Start with a small sample (10-100 payloads) to:
+- Verify format is correct
+- Check LLM detection accuracy
+- Estimate processing time for full dataset
+
+---
+
+## Testing Datasets
+
+### Via Web Interface
+
+1. **Navigate** to http://localhost:8080/testing.html
+
+2. **Upload Dataset**
+   - Click "Choose File"
+   - Select your dataset file
+
+3. **Configure Test**
+   - **Format**: Select "Auto-detect" (recommended) or specify format
+   - **Attack Type**: Enter a tag (e.g., "SQLi", "XSS", "CSIC2010")
+   - **Sampling**: Choose sample size
+     - `All` - Test every payload
+     - `Random 100` - Random sample of 100
+     - `Random 1,000` - Random sample of 1,000
+     - `Random 10,000` - Random sample of 10,000
+
+4. **Optional: Deterministic Sampling**
+   - Expand "Advanced Options"
+   - Enter a seed number (e.g., `42`, `12345`)
+   - Same seed = same sample (reproducible results)
+
+5. **Start Test**
+   - Click "Start Dataset Test"
+   - Monitor progress (batch processing)
+   - Wait for completion
+
+6. **View Results**
+   - Results appear in "Completed Test Runs" section
+   - Click "View Details" to see:
+     - Detection breakdown by category
+     - Passed payloads (what LLM missed)
+     - LLM statistics
+
+### Via API (Automation)
 
 ```bash
 curl -X POST http://localhost:8080/api/tests/start-dataset-test \
-  -F "file=@output_http_csic_2010_weka_with_duplications_RAW-RFC2616_escd_v02_full.csv" \
-  -F "attackTypeTag=HTTP" \
-  -F "samplingSize=Random 1000"
+  -F "file=@/path/to/dataset.csv" \
+  -F "datasetFormat=AUTO" \
+  -F "attackTypeTag=SQLi" \
+  -F "samplingSize=Random 100" \
+  -F "seed=42"
 ```
+
+**Response**:
+```json
+{
+  "testRun": {
+    "id": 123,
+    "startTime": "2026-02-06T10:30:00",
+    "endTime": "2026-02-06T10:31:00",
+    "totalPassed": 30,
+    "totalBlocked": 70,
+    "datasetFileName": "sqli-payloads.csv",
+    "datasetFormat": "CSV",
+    "attackTypeTag": "SQLi",
+    "samplingSize": "Random 100"
+  },
+  "llmStats": {
+    "total": 30,
+    "malicious": 25,
+    "safe": 5,
+    "byCategory": {
+      "SQLi": 20,
+      "SQLI": 5
+    }
+  }
+}
+```
+
+---
+
+## Interpreting Results
+
+### Test Run Summary
+
+| Field | Description |
+|-------|-------------|
+| **Total Tested** | Number of payloads analyzed |
+| **Blocked** | Payloads detected as malicious |
+| **Passed** | Payloads classified as safe (potential bypasses) |
+| **Block Rate** | Percentage of blocked payloads |
+
+### LLM Analysis (if enabled)
+
+| Field | Description |
+|-------|-------------|
+| **Total Malicious Requests** | How many payloads LLM analyzed |
+| **LLM Blocked** | Payloads LLM classified as malicious |
+| **LLM Detection Rate** | Percentage LLM caught |
+| **By Category** | Breakdown by attack type (SQLi, XSS, etc.) |
+
+### Detection Breakdown
+
+Shows which detection categories caught payloads:
+
+```
+Detection Breakdown:
+- LLM:SQLi: 45 requests
+- LLM:XSS: 20 requests
+- LLM:CMDI: 5 requests
+```
+
+### Passed Payloads
+
+**Critical for security research!**
+
+These are payloads the LLM classified as "safe" - potential bypasses or false negatives. Review these to:
+- Identify LLM blind spots
+- Create evasion datasets
+- Improve prompts
+- Fine-tune models
+
+---
+
+## Example Datasets
+
+### SQLi Payloads (CSV)
+
+```csv
+payload,description
+"' OR '1'='1",Classic SQLi
+"admin'--",Comment-based bypass
+"1' UNION SELECT NULL--",Union-based injection
+"' AND 1=1--",Boolean-based blind
+"'; DROP TABLE users--",Stacked query
+```
+
+### XSS Payloads (TXT)
+
+```
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+javascript:alert(1)
+<iframe src="javascript:alert(1)">
+```
+
+### Mixed Attacks (JSON)
+
+```json
+[
+  {"payload": "' OR 1=1 --", "type": "SQLi", "severity": "high"},
+  {"payload": "<script>alert(XSS)</script>", "type": "XSS", "severity": "high"},
+  {"payload": "../../etc/passwd", "type": "PathTraversal", "severity": "critical"},
+  {"payload": "; cat /etc/passwd", "type": "CMDI", "severity": "critical"}
+]
+```
+
+### CSIC 2010 Dataset
+
+The [CSIC 2010 HTTP Dataset](http://www.isi.csic.es/dataset/) is a popular WAF testing dataset.
+
+**Format**: CSV with these columns:
+- index, method, url, protocol, userAgent, pragma, cacheControl, accept, acceptEncoding, acceptCharset, acceptLanguage, host, connection, contentLength, contentType, cookie, **payload**, label
+
+**To use**:
+1. Download CSV from CSIC 2010
+2. Upload to SafeGate
+3. Select "Auto-detect" format
+4. Tag as "CSIC2010" or "HTTP"
+5. Choose sampling (dataset is large: ~36,000 entries)
+
+**Sampling recommendations**:
+- `Random 100` - Quick test
+- `Random 1,000` - Standard benchmark
+- `All` - Comprehensive evaluation (takes time)
+
+---
+
+## Best Practices
+
+### 1. Start Small
+
+- Begin with 10-100 payloads
+- Verify format is correct
+- Check LLM is detecting appropriately
+- Estimate time for full dataset
+
+### 2. Use Sampling for Large Datasets
+
+- Datasets > 1,000 payloads: use sampling
+- `Random 100` for quick tests
+- `Random 1,000` for benchmarks
+- `All` only when needed
+
+### 3. Tag Your Tests
+
+Always use the "Attack Type" tag:
+- Organizes results
+- Enables comparisons
+- Makes analysis easier
+
+**Good tags**: `SQLi`, `XSS`, `CSIC2010`, `Fuzzdb-SQLi`, `Custom-Bypasses`
+
+### 4. Use Deterministic Sampling for Reproducibility
+
+For research or comparisons:
+- Set a seed value (e.g., `42`)
+- Same seed = same sample every time
+- Document your seed in papers/reports
+
+### 5. Review Passed Payloads
+
+**Most important for security research!**
+
+Passed payloads = potential bypasses. Always:
+- Export passed payloads
+- Analyze why they weren't detected
+- Use them to improve detection
+- Build bypass technique libraries
+
+### 6. Compare Models
+
+Test the same dataset with different models:
+
+```
+Dataset: sqli-1000.csv | Seed: 42
+
+Model          | Block Rate | Time
+---------------|-----------|------
+tinyllama      | 65%       | 2min
+phi3:mini      | 78%       | 5min
+mistral        | 85%       | 8min
+llama3.2:3b    | 89%       | 10min
+```
+
+### 7. Clean Your Data
+
+Remove duplicates and normalize:
+
+```python
+# Python script to clean CSV
+import pandas as pd
+
+df = pd.read_csv('payloads.csv')
+df = df.drop_duplicates(subset=['payload'])
+df['payload'] = df['payload'].str.strip()
+df.to_csv('payloads_clean.csv', index=False)
+```
+
+### 8. Version Your Datasets
+
+Track dataset versions:
+- `sqli-payloads-v1.csv`
+- `sqli-payloads-v2-cleaned.csv`
+- `sqli-payloads-v3-bypasses.csv`
+
+### 9. Document Results
+
+Create a testing log:
+
+```
+Date: 2026-02-06
+Dataset: fuzzdb-sqli.csv (1000 payloads)
+Model: mistral
+Mode: TEST_ONLY
+Seed: 42
+Results: 850/1000 detected (85%)
+Notes: Weak on Unicode encoding bypasses
+```
+
+### 10. Export and Share
+
+SafeGate allows exporting results:
+- Passed payloads → CSV
+- Malicious payloads → CSV
+- Full results → JSON (via API)
+
+Share datasets with the community!
+
+---
 
 ## Troubleshooting
 
-If you encounter issues with your dataset file:
+### "No payloads extracted"
 
-1. **No headers found**: Ensure your CSV file has a header row with column names.
-2. **Payload column not found**: Ensure one of your columns is named "payload" (case-insensitive).
-3. **No payloads extracted**: Ensure the payload column contains non-empty values.
-4. **Parsing errors**: Check for formatting issues like unbalanced quotes or special characters.
-5. **File too large**: The maximum file size is 100MB. For larger files, consider splitting them.
+**Causes**:
+- CSV missing `payload` column
+- JSON not in expected format
+- TXT file is empty
+- Wrong format selected
 
-You can open your file in a text editor to check its format, or use a tool like Excel to export it as a standard CSV.
+**Solutions**:
+- Check CSV has header row with `payload` column
+- Validate JSON syntax
+- Use "Auto-detect" format
+- Check file encoding (should be UTF-8)
 
-## Using Auto-Detection
+### "Format detection failed"
 
-The "Auto-detect" format option is recommended for most cases. It will:
-1. Analyze the file content to determine its format
-2. Look for common patterns like commas, quotes, and headers
-3. Automatically use the appropriate parsing logic
+**Causes**:
+- File format doesn't match extension
+- Corrupted file
+- Unsupported encoding
 
-If auto-detection fails, you can explicitly select the format.
+**Solutions**:
+- Specify format manually
+- Re-save file in correct format
+- Convert to UTF-8 encoding
 
-## Tips for Effective Testing
+### "Processing too slow"
 
-1. **Start with small samples**: Use "Random 100" to quickly test a subset of payloads
-2. **Tag your tests**: Use the attackTypeTag parameter to categorize different types of tests
-3. **Review safe payloads**: Focus on payloads that the LLM considered safe to identify detection gaps
-4. **Tune model/prompts**: Adjust model choice, prompts, and configuration based on test results and run tests again
-5. **Use multiple datasets**: Test with different datasets to cover various attack vectors
+**Causes**:
+- Large dataset without sampling
+- Slow LLM model
+- CPU mode (no GPU)
 
-## Last Updated
+**Solutions**:
+- Use sampling (`Random 1,000`)
+- Switch to faster model (tinyllama)
+- Enable GPU acceleration
+- Process in batches
 
-2025-07-25
+### "Out of memory"
+
+**Causes**:
+- Dataset too large
+- Model too large for available RAM
+
+**Solutions**:
+- Use sampling
+- Switch to smaller model
+- Increase Docker memory limit
+- Process in smaller batches
+
+---
+
+## Next Steps
+
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Configure LLM models and GPU
+- **[README.md](README.md)** - Return to main documentation
+
+---
+
+## Example Workflow
+
+**Complete example from start to finish:**
+
+1. **Prepare dataset** (`sqli-test.csv`):
+   ```csv
+   id,payload,expected
+   1,"' OR 1=1 --",malicious
+   2,"admin'--",malicious
+   3,"normal query",benign
+   ```
+
+2. **Upload to SafeGate**:
+   - Go to http://localhost:8080/testing.html
+   - Choose file: `sqli-test.csv`
+   - Format: Auto-detect
+   - Attack Type: `SQLi-Test`
+   - Sampling: `All`
+
+3. **Start test** and wait for completion
+
+4. **View results** in http://localhost:8080/logs.html:
+   - Test ID: 123
+   - Blocked: 2/3 (66.7%)
+   - Passed: 1/3
+
+5. **Click "View Details"** to see which payload passed
+
+6. **Export passed payloads** for analysis
+
+7. **Try different model** and compare results
+
+---
+
+**Need Help?**
+- Open an issue: https://github.com/yourusername/SafeGate/issues
+- Discussions: https://github.com/yourusername/SafeGate/discussions

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dataset Test Results - SafeGate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        nav {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        nav a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .description {
+            color: #a0a0a0;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .toolbar {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .delete-all-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .delete-all-btn:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        thead {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #ffffff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .actions {
+            white-space: nowrap;
+        }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        .expandable {
+            cursor: pointer;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .expandable:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .details-row {
+            display: none;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .details-content {
+            padding: 2rem;
+            max-height: 500px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin: 1rem;
+        }
+
+        .details-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .details-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .details-content::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        .details-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .details-section h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+
+        .details-section p {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        .payload-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .payload-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .payload-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .payload-list::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        .payload-item {
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            border-left: 3px solid #667eea;
+            padding-left: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+        }
+
+        .llm-section {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .malicious-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-left: 0.5rem;
+            font-weight: 500;
+        }
+
+        .safe-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-left: 0.5rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            table {
+                font-size: 0.9rem;
+            }
+
+            th, td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/index.html">🏠 Home</a>
+            <a href="/testing.html">🧪 Dataset Testing</a>
+            <a href="/llm.html">⚙️ LLM Configuration</a>
+        </nav>
+        <h1>Dataset Test Results History</h1>
+        <p class="description">View all dataset test runs and their LLM analysis results. Click "View Details" to see passed payloads and LLM classifications.</p>
+
+        <div class="toolbar">
+            <button onclick="fetchTestResults()">Refresh Results</button>
+            <button onclick="deleteAllResults()" class="delete-all-btn">Delete All Results</button>
+        </div>
+
+        <table id="test-results-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Start Time</th>
+                <th>Dataset</th>
+                <th>Format</th>
+                <th>Attack Type</th>
+                <th>Sampling</th>
+                <th>Total Tested</th>
+                <th>Blocked</th>
+                <th>Passed</th>
+                <th>Block Rate</th>
+                <th class="actions">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+<script>
+    function fetchTestResults() {
+        fetch('/api/tests/results')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector("#test-results-table tbody");
+                tableBody.innerHTML = "";
+
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No test results yet. Run a dataset test to see results here.</td></tr>';
+                    return;
+                }
+
+                data.sort((a, b) => b.id - a.id).forEach(test => {
+                    const totalTested = (test.totalPassed || 0) + (test.totalBlocked || 0);
+                    const blockRate = totalTested > 0 ? ((test.totalBlocked / totalTested) * 100).toFixed(1) : '0.0';
+
+                    const mainRow = `<tr>
+                        <td>${test.id}</td>
+                        <td>${new Date(test.startTime).toLocaleString()}</td>
+                        <td>${test.datasetFileName || 'N/A'}</td>
+                        <td>${test.datasetFormat || 'N/A'}</td>
+                        <td>${test.attackTypeTag || 'N/A'}</td>
+                        <td>${test.samplingSize || 'All'}</td>
+                        <td>${totalTested}</td>
+                        <td>${test.totalBlocked || 0}</td>
+                        <td>${test.totalPassed || 0}</td>
+                        <td>${blockRate}%</td>
+                        <td class="actions">
+                            <span class="expandable" onclick="toggleDetails(${test.id})">View Details</span> |
+                            <button class="delete-btn" onclick="deleteTestResult(${test.id})">Delete</button>
+                        </td>
+                    </tr>`;
+
+                    const detailsRow = `<tr id="details-${test.id}" class="details-row">
+                        <td colspan="11">
+                            <div class="details-content" id="details-content-${test.id}">
+                                <p>Loading details...</p>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                    tableBody.innerHTML += mainRow + detailsRow;
+                });
+            })
+            .catch(err => {
+                console.error('Error fetching test results:', err);
+                alert('Failed to fetch test results');
+            });
+    }
+
+    function toggleDetails(testId) {
+        const detailsRow = document.getElementById(`details-${testId}`);
+        const detailsContent = document.getElementById(`details-content-${testId}`);
+
+        if (detailsRow.style.display === 'table-row') {
+            detailsRow.style.display = 'none';
+        } else {
+            detailsRow.style.display = 'table-row';
+            loadTestDetails(testId, detailsContent);
+        }
+    }
+
+    function loadTestDetails(testId, contentElement) {
+        fetch(`/api/tests/results`)
+            .then(response => response.json())
+            .then(data => {
+                const test = data.find(t => t.id === testId);
+                if (!test) {
+                    contentElement.innerHTML = '<p>Test not found</p>';
+                    return;
+                }
+
+                let html = '<div class="details-section">';
+                html += '<h4>Test Run Information</h4>';
+                html += `<p><strong>Start Time:</strong> ${new Date(test.startTime).toLocaleString()}</p>`;
+                html += `<p><strong>End Time:</strong> ${test.endTime ? new Date(test.endTime).toLocaleString() : 'N/A'}</p>`;
+                html += `<p><strong>Duration:</strong> ${calculateDuration(test.startTime, test.endTime)}</p>`;
+                html += `<p><strong>Dataset File:</strong> ${test.datasetFileName || 'N/A'}</p>`;
+                html += `<p><strong>Format:</strong> ${test.datasetFormat || 'N/A'}</p>`;
+                html += `<p><strong>Attack Type:</strong> ${test.attackTypeTag || 'N/A'}</p>`;
+                html += `<p><strong>Sampling:</strong> ${test.samplingSize || 'All'}</p>`;
+                html += '</div>';
+
+                // Block counts by rule/category
+                if (test.blockCounts && test.blockCounts.length > 0) {
+                    html += '<div class="details-section">';
+                    html += '<h4>Detection Breakdown</h4>';
+                    html += '<ul>';
+                    test.blockCounts.forEach(bc => {
+                        html += `<li><strong>${bc.ruleName || bc.category}:</strong> ${bc.count} blocked</li>`;
+                    });
+                    html += '</ul>';
+                    html += '</div>';
+                }
+
+                // Passed payloads
+                if (test.passedPayloads && test.passedPayloads.length > 0) {
+                    html += '<div class="details-section">';
+                    html += `<h4>Passed Payloads (${test.passedPayloads.length})</h4>`;
+                    html += '<div class="payload-list">';
+                    test.passedPayloads.forEach((pp, idx) => {
+                        html += `<div class="payload-item">${idx + 1}. ${escapeHtml(pp.payload || pp)}</div>`;
+                    });
+                    html += '</div>';
+                    html += '</div>';
+                } else {
+                    html += '<div class="details-section">';
+                    html += '<h4>Passed Payloads</h4>';
+                    html += '<p>None - all payloads were blocked!</p>';
+                    html += '</div>';
+                }
+
+                // LLM Results (if available)
+                if (test.totalMaliciousRequests !== undefined) {
+                    html += '<div class="details-section llm-section">';
+                    html += '<h4>LLM Analysis Results</h4>';
+                    html += `<p><strong>Total Malicious Requests:</strong> ${test.totalMaliciousRequests}</p>`;
+                    html += `<p><strong>LLM Blocked:</strong> ${test.totalMaliciousBlocked}</p>`;
+                    html += `<p><strong>LLM Detection Rate:</strong> ${test.totalMaliciousRequests > 0 ? ((test.totalMaliciousBlocked / test.totalMaliciousRequests) * 100).toFixed(1) : '0.0'}%</p>`;
+                    html += '</div>';
+                }
+
+                contentElement.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error loading details:', err);
+                contentElement.innerHTML = '<p style="color: red;">Failed to load details</p>';
+            });
+    }
+
+    function calculateDuration(start, end) {
+        if (!start || !end) return 'N/A';
+        const duration = new Date(end) - new Date(start);
+        const seconds = Math.floor(duration / 1000);
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m ${remainingSeconds}s`;
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function deleteTestResult(testId) {
+        if (!confirm(`Are you sure you want to delete test run #${testId}?`)) {
+            return;
+        }
+
+        fetch(`/api/tests/results/${testId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Test result deleted successfully');
+                fetchTestResults();
+            } else {
+                alert('Failed to delete test result');
+            }
+        })
+        .catch(err => {
+            console.error('Error deleting test result:', err);
+            alert('Failed to delete test result');
+        });
+    }
+
+    function deleteAllResults() {
+        if (!confirm('Are you sure you want to delete ALL test results? This cannot be undone!')) {
+            return;
+        }
+
+        fetch('/api/tests/results')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    alert('No test results to delete');
+                    return;
+                }
+
+                // Delete all test results one by one
+                const deletePromises = data.map(test =>
+                    fetch(`/api/tests/results/${test.id}`, { method: 'DELETE' })
+                );
+
+                Promise.all(deletePromises)
+                    .then(() => {
+                        alert('All test results deleted successfully');
+                        fetchTestResults();
+                    })
+                    .catch(err => {
+                        console.error('Error deleting all results:', err);
+                        alert('Some test results could not be deleted');
+                        fetchTestResults();
+                    });
+            })
+            .catch(err => {
+                console.error('Error fetching test results:', err);
+                alert('Failed to delete all results');
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchTestResults);
+</script>
+</body>
+</html>

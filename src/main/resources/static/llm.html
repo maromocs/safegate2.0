@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Analyzer Configuration - SafeGate WAF</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        nav a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 2rem;
+            font-weight: 700;
+        }
+
+        .form-container {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b0b0b0;
+            font-weight: 500;
+        }
+
+        select, input[type="text"], input[type="password"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e0e0e0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        small {
+            color: #888;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
+
+        #pullProgress {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #pullProgressBar {
+            height: 10px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        #llm-status-banner {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+
+        #llm-status-banner strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/index.html">🏠 Home</a>
+            <a href="/logs.html">📊 Test Results</a>
+            <a href="/testing.html">🧪 Dataset Testing</a>
+        </nav>
+    <h1>LLM Analyzer Configuration</h1>
+    
+    <div class="form-container">
+        <form id="llm-config-form">
+            <div>
+                <label for="llmMode">LLM Mode:</label>
+                <select id="llmMode" name="llmMode">
+
+
+                    <option value="TEST_ONLY">Dataset Testing Only</option>
+
+                </select>
+            </div>
+            <div style="margin-top: 15px;">
+                <label for="provider">Provider:</label>
+                <select id="provider" name="provider">
+                    <option value="ollama" selected>Ollama (local)</option>
+                </select>
+            </div>
+            <div style="margin-top: 15px;">
+                <label for="model">Model:</label>
+                <select id="model" name="model"></select>
+                <small id="models-help">Recommended and available models are fetched from analyzer.</small>
+            </div>
+            <div style="margin-top: 15px;">
+                <label for="pullModelName">Pull arbitrary model (e.g., tinyllama, phi3:mini):</label>
+                <input type="text" id="pullModelName" placeholder="Enter model name">
+                <button type="button" id="pullModelBtn" disabled>Pull Model</button>
+                <div id="pullProgress" style="display:none; margin-top:8px;">
+                    <div id="pullProgressText" style="font-size: 0.9rem; margin-bottom: 6px;">Waiting…</div>
+                    <div style="background:#333; width:100%; height:10px; border-radius:5px; overflow:hidden;">
+                        <div id="pullProgressBar" style="background:#4caf50; width:0%; height:100%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <label for="llmApiUrl">Analyzer URL:</label>
+                <input type="text" id="llmApiUrl" name="llmApiUrl" placeholder="http://analyzer:5000/analyze">
+            </div>
+            <div style="margin-top: 15px; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="gpuEnabled" name="gpuEnabled">
+                <label for="gpuEnabled">Use GPU acceleration (CUDA)</label>
+            </div>
+            <small>Requires NVIDIA GPU and Docker GPU support. Enable the GPU profile in docker compose.</small>
+            <div style="margin-top: 15px;">
+                <label for="llmApiKey">LLM API Key (optional):</label>
+                <input type="password" id="llmApiKey" name="llmApiKey" placeholder="Enter API key if required">
+            </div>
+            <div id="form-errors" class="status-message error" style="display:none;"></div>
+            <button type="submit" id="saveBtn" style="margin-top: 15px;" disabled>Save Configuration</button>
+        </form>
+        <div id="status-message" class="status-message" style="display: none;"></div>
+
+        <div id="llm-status-banner" class="status-message" style="display:none; margin-top:10px;"></div>
+        <button id="refreshStatusBtn" type="button" style="margin-top:5px;">Refresh Status</button>
+    </div>
+
+<script>
+    const form = document.getElementById('llm-config-form');
+    const statusMessage = document.getElementById('status-message');
+    const modelSelect = document.getElementById('model');
+    const pullBtn = document.getElementById('pullModelBtn');
+    const pullInput = document.getElementById('pullModelName');
+    const saveBtn = document.getElementById('saveBtn');
+    const formErrors = document.getElementById('form-errors');
+    const gpuCheckbox = document.getElementById('gpuEnabled');
+    const statusBanner = document.getElementById('llm-status-banner');
+    const refreshStatusBtn = document.getElementById('refreshStatusBtn');
+    const pullProgress = document.getElementById('pullProgress');
+    const pullProgressText = document.getElementById('pullProgressText');
+    const pullProgressBar = document.getElementById('pullProgressBar');
+    let progressInterval = null;
+
+    function isValidUrl(u) {
+        try {
+            const x = new URL(u);
+            return x.protocol === 'http:' || x.protocol === 'https:';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function validateAndToggle() {
+        const errors = [];
+        const urlVal = (form.llmApiUrl.value || '').trim();
+        if (!isValidUrl(urlVal)) {
+            errors.push('Analyzer URL is required and must be a valid URL.');
+        }
+        const provider = form.provider.value;
+        const modelVal = (modelSelect.value || '').trim();
+        if (provider === 'ollama' && !modelVal) {
+            errors.push('Model is required for provider Ollama. Please select a model from the dropdown.');
+        }
+        if (errors.length > 0) {
+            formErrors.textContent = errors.join(' ');
+            formErrors.style.display = 'block';
+            saveBtn.disabled = true;
+        } else {
+            formErrors.style.display = 'none';
+            saveBtn.disabled = false;
+        }
+        return errors;
+    }
+
+    // Disable/enable Pull button based on input
+    function togglePullBtn() {
+        pullBtn.disabled = (pullInput.value.trim() === '');
+    }
+    pullInput.addEventListener('input', togglePullBtn);
+    // Initial states
+    togglePullBtn();
+
+    // Live validation
+    form.llmApiUrl.addEventListener('input', validateAndToggle);
+    form.provider.addEventListener('change', validateAndToggle);
+    modelSelect.addEventListener('change', validateAndToggle);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Pre-populate with a loading placeholder to avoid empty dropdown perception
+        modelSelect.innerHTML = '<option disabled selected>Loading models from analyzer…</option>';
+        fetchConfig();
+        fetchModels();
+        refreshStatus();
+    });
+
+    const RECOMMENDED = ["tinyllama","phi","phi3:mini","mistral","llama2","llama3.2:3b-instruct"];
+    function fetchModels() {
+        fetch('/api/llm/models')
+          .then(res => res.json())
+          .then(data => {
+            const recommended = Array.isArray(data.recommended) && data.recommended.length ? data.recommended : RECOMMENDED;
+            const available = Array.isArray(data.available) ? data.available : [];
+            const options = new Set();
+            recommended.forEach(m => options.add(m));
+            available.forEach(m => options.add(m));
+            modelSelect.innerHTML = '';
+            Array.from(options).forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                modelSelect.appendChild(opt);
+            });
+            if (options.size === 0) {
+                const opt = document.createElement('option');
+                opt.disabled = true; opt.selected = true;
+                opt.textContent = 'No models yet — preparing analyzer…';
+                modelSelect.appendChild(opt);
+            }
+            validateAndToggle();
+          })
+          .catch(err => {
+            console.error('Error fetching models', err);
+            // Fallback to recommended
+            modelSelect.innerHTML = '';
+            RECOMMENDED.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m; opt.textContent = m; modelSelect.appendChild(opt);
+            });
+            validateAndToggle();
+          });
+    }
+
+    function fetchConfig() {
+        fetch('/api/llm/config')
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    if (data.llmMode) form.llmMode.value = data.llmMode;
+                    if (data.llmApiUrl) form.llmApiUrl.value = data.llmApiUrl;
+                    if (data.llmApiKey) form.llmApiKey.value = data.llmApiKey;
+                    if (data.provider) form.provider.value = data.provider;
+                    if (data.model) {
+                        // model will be selected after fetchModels populates
+                        setTimeout(() => { modelSelect.value = data.model; validateAndToggle(); }, 350);
+                    }
+                    if (typeof data.gpuEnabled === 'boolean') gpuCheckbox.checked = data.gpuEnabled;
+                }
+                validateAndToggle();
+            })
+            .catch(err => {
+                console.error("Error fetching config:", err);
+                showStatus('Failed to fetch configuration.', false);
+            });
+    }
+
+    pullBtn.addEventListener('click', () => {
+        const name = pullInput.value.trim();
+        if (!name) { showStatus('Enter a model name to pull', false); return; }
+        fetch('/api/llm/models/pull', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ model: name })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'requested') {
+            showStatus(`Pull requested for ${data.model}.`, true);
+            startModelPullProgress(name);
+            fetchModels();
+          } else {
+            showStatus(`Pull failed: ${data.message || 'Unknown error'}`, false);
+          }
+        })
+        .catch(err => { console.error(err); showStatus('Pull failed.', false); });
+    });
+
+    function showStatus(message, isSuccess) {
+        statusMessage.textContent = message;
+        statusMessage.className = 'status-message ' + (isSuccess ? 'success' : 'error');
+        statusMessage.style.display = 'block';
+        setTimeout(() => {
+            statusMessage.style.display = 'none';
+        }, 5000);
+    }
+
+    function startModelPullProgress(model) {
+        if (!model) return;
+        if (progressInterval) clearInterval(progressInterval);
+        pullProgress.style.display = 'block';
+        pullProgressBar.style.width = '0%';
+        pullProgressText.textContent = `Preparing to pull ${model}…`;
+        let polls = 0;
+        progressInterval = setInterval(() => {
+            fetch(`/api/llm/models/progress?model=${encodeURIComponent(model)}`)
+              .then(r => r.json())
+              .then(st => {
+                polls++;
+                const pct = Number(st.percent || 0);
+                const status = String(st.status || 'unknown');
+                pullProgressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+                if (status === 'completed' || pct >= 100) {
+                    pullProgressText.textContent = `Model ${model} pull completed.`;
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    fetchModels();
+                    setTimeout(() => { pullProgress.style.display = 'none'; }, 3000);
+                } else if (status === 'error') {
+                    pullProgressText.textContent = `Error pulling ${model}: ${st.message || 'Unknown error'}`;
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                } else if (status === 'unknown' && polls > 5 && pct === 0) {
+                    // If analyzer doesn't know about this pull after several polls, hide gracefully
+                    pullProgressText.textContent = `Waiting for analyzer to start pulling ${model}…`;
+                } else {
+                    pullProgressText.textContent = `Pulling ${model} — ${pct}%`;
+                }
+              })
+              .catch(() => {
+                // Keep polling; transient errors may occur while Ollama spins up
+              });
+        }, 1500);
+    }
+
+    function refreshStatus() {
+        Promise.all([
+            fetch('/api/llm/config').then(r => r.json()).catch(() => ({})),
+            fetch('/api/llm/models').then(r => r.json()).catch(() => ({}))
+        ]).then(([cfg, models]) => {
+            const mode = cfg.llmMode || 'DISABLED';
+            const provider = cfg.provider || 'ollama';
+            const model = cfg.model || '';
+            const gpu = cfg.gpuEnabled ? 'On' : 'Off';
+            const avail = Array.isArray(models.available) ? models.available : [];
+            const rec = Array.isArray(models.recommended) ? models.recommended : [];
+            const reachable = (avail.length > 0 || rec.length > 0) ? 'Yes' : 'Unknown';
+            const normalActive = (mode === 'NORMAL_ONLY' || mode === 'NORMAL_AND_TEST') ? 'Yes' : 'No';
+            const datasetActive = (mode === 'TEST_ONLY' || mode === 'NORMAL_AND_TEST') ? 'Yes' : 'No';
+            statusBanner.className = 'status-message';
+            statusBanner.style.display = 'block';
+            statusBanner.innerHTML = `<strong>LLM Status</strong><br>
+              Mode: ${mode} | Provider/Model: ${provider}/${model}<br>
+              Analyzer reachable: ${reachable} | GPU: ${gpu}<br>
+              Will analyze now — Normal: ${normalActive}, Dataset: ${datasetActive}`;
+        }).catch(() => {
+            statusBanner.className = 'status-message error';
+            statusBanner.style.display = 'block';
+            statusBanner.textContent = 'Failed to refresh status.';
+        });
+    }
+
+    refreshStatusBtn.addEventListener('click', refreshStatus);
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const errs = validateAndToggle();
+        if (errs && errs.length) { return; }
+        const config = {
+            llmMode: form.llmMode.value,
+            llmApiUrl: form.llmApiUrl.value,
+            llmApiKey: form.llmApiKey.value,
+            provider: form.provider.value,
+            model: modelSelect.value,
+            gpuEnabled: !!gpuCheckbox.checked
+        };
+        fetch('/api/llm/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        })
+        .then(async res => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const msg = data && data.message ? data.message : 'Failed to save configuration.';
+                formErrors.textContent = msg;
+                formErrors.style.display = 'block';
+                saveBtn.disabled = true;
+                throw new Error(msg);
+            }
+            return data;
+        })
+        .then(data => {
+            formErrors.style.display = 'none';
+            showStatus('Configuration saved successfully!', true);
+            if (data.llmMode) form.llmMode.value = data.llmMode;
+            form.llmApiUrl.value = data.llmApiUrl || '';
+            form.llmApiKey.value = data.llmApiKey || '';
+            if (data.provider) form.provider.value = data.provider;
+            if (data.model) modelSelect.value = data.model;
+            if (typeof data.gpuEnabled === 'boolean') gpuCheckbox.checked = data.gpuEnabled;
+            // Start progress polling after save if using Ollama (best-effort pull happens server-side)
+            if ((form.provider.value || '').toLowerCase() === 'ollama' && (modelSelect.value || '').trim()) {
+                startModelPullProgress(modelSelect.value.trim());
+            }
+            validateAndToggle();
+            refreshStatus();
+        })
+        .catch(err => {
+            console.error('Error saving config:', err);
+            // Inline error already shown via formErrors; optional toast:
+            showStatus(err.message || 'Failed to save configuration.', false);
+        });
+    });
+</script>
+    </div>
+</body>
+</html>

@@ -1,0 +1,135 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: safegate-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - safegate-net
+    ports:
+      - "3307:3306"  # Added port mapping for direct access
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+
+  # Spring Boot API Service
+  api:
+    build:
+      context: .     # your Spring Boot project
+      dockerfile: Dockerfile
+    container_name: safegate-api
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      LLM_ANALYZER_URL: ${LLM_ANALYZER_URL}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      analyzer: # Make api wait for analyzer
+        condition: service_started
+    ports:
+      - "8080:8080"
+    networks:
+      - safegate-net
+
+  # LLM Analyzer Service
+  analyzer:
+    build:
+      context: ./analyzer  # Path to your Python app
+      dockerfile: Dockerfile
+    container_name: safegate-analyzer
+    restart: unless-stopped
+    environment:
+      - ANALYZER_BACKEND=${ANALYZER_BACKEND}
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - ANALYZER_BATCH_SIZE=${ANALYZER_BATCH_SIZE}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - safegate-net
+    ports:
+      - "5001:5000"
+
+  # Ollama Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # Note: we do NOT publish Ollama's port to the host to avoid conflicts when a host Ollama is already running.
+    # Analyzer and API reach this service over the Docker network via http://ollama:11434.
+    # If you need to access Ollama from the host, create a docker-compose.override.yml with:
+    #   services:
+    #     ollama:
+    #       ports:
+    #         - "11435:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    networks:
+      - safegate-net
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # One-shot init to pre-pull ONLY tinyllama (smallest model ~600MB)
+  # Models are stored in ollama_data volume, so they persist between restarts
+  ollama-init:
+    image: curlimages/curl:8.5.0
+    container_name: ollama-init
+    depends_on:
+      ollama:
+        condition: service_started
+    networks:
+      - safegate-net
+    entrypoint: ["/bin/sh","-c"]
+    command: >-
+      "until curl -sf http://ollama:11434/api/tags >/dev/null; do echo 'Waiting for Ollama...'; sleep 2; done; \
+      echo 'Checking for existing models...'; \
+      MODELS=$$(curl -s http://ollama:11434/api/tags | grep -o '\"name\":\"[^\"]*\"' | cut -d'\"' -f4); \
+      echo \"Found models: $$MODELS\"; \
+      if echo \"$$MODELS\" | grep -q 'tinyllama'; then \
+        echo 'tinyllama already exists, skipping download'; \
+      else \
+        echo 'Pulling tinyllama (600MB)...'; \
+        curl -sS -X POST http://ollama:11434/api/pull -d '{\"name\":\"tinyllama\"}'; \
+        echo 'tinyllama downloaded'; \
+      fi; \
+      echo 'Init complete. Pull additional models from the LLM Config page in SafeGate UI.'"
+
+  # dashboard:
+  #   image: your-docker-registry/safegate-dashboard:latest
+  #   build:
+  #     context: ./dashboard  # your React/Vite app
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - safegate-net
+
+volumes:
+  mysql_data:
+  ollama_data:
+
+networks:
+  safegate-net:
+    driver: bridge

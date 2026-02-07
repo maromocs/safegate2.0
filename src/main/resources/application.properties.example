@@ -1,0 +1,21 @@
+#change accordingly
+
+spring.application.name=SafeGate
+# Use the container name 'mysql' instead of localhost when running in Docker
+spring.datasource.url=jdbc:mysql://mysql:3306/safegate_db?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+spring.datasource.username=your_database_user
+spring.datasource.password=your_database_password
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+
+# Add connection pool settings for better performance
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+
+# Increase upload limits for handling large datasets
+# Sets the maximum size of a single file to 100MB
+spring.servlet.multipart.max-file-size=300MB
+# Sets the maximum size of a total request (including multiple files) to 100MB
+spring.servlet.multipart.max-request-size=300MB

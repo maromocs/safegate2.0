@@ -1,0 +1,42 @@
+# Docker build context exclusions for SafeGate
+# VCS and IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Gradle caches and build outputs
+.gradle
+**/.gradle
+build
+**/build
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Node or other caches (if present)
+node_modules
+
+# Python virtual envs (analyzer or local)
+.venv
+venv
+**/__pycache__
+
+# Large datasets and outputs not needed for building the API image
+output_http_csic_2010_weka_with_duplications_RAW-RFC2616_escd_v02_full.csv
+*.csv
+*.tsv
+*.xlsx
+*.zip
+*.tar
+*.tar.gz
+
+# Logs
+logs
+*.log
+
+# Do not exclude Docker files or compose files
+!Dockerfile
+!docker-compose.yml
+!docker-compose.gpu.yml

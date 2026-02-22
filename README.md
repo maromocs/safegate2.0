@@ -75,7 +75,7 @@ SafeGate transforms security datasets into actionable insights about LLM detecti
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/SafeGate.git
+   git clone https://github.com/yourusername/safegate2.0.git
    cd SafeGate
    ```
 

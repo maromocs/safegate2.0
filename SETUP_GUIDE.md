@@ -79,7 +79,7 @@ docker compose version
 ### Step 2: Clone SafeGate
 
 ```bash
-git clone https://github.com/yourusername/SafeGate.git
+git clone https://github.com/yourusername/safegate2.0.git
 cd SafeGate
 ```
 
